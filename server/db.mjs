@@ -34,12 +34,12 @@ export function migrateAndSeed(){
     CREATE INDEX IF NOT EXISTS idx_audit_org_time ON audit_logs(organization_id,timestamp);
     CREATE TABLE IF NOT EXISTS settings (organization_id TEXT PRIMARY KEY,data_json TEXT NOT NULL DEFAULT '{}',updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,FOREIGN KEY (organization_id) REFERENCES organizations(id));
   `);
-  if(db.prepare("SELECT COUNT(*) c FROM organizations").get().c>0)return;
+  const addOrg=db.prepare("INSERT OR IGNORE INTO organizations(id,name,plan,users,active_projects,documents_processed,ai_requests) VALUES (?,?,?,?,?,?,?)");
+  // Super Admin is platform-scoped, so always ensure its FK target exists.
+  addOrg.run("platform","Finotech AI Platform","Enterprise",0,0,0,0);
+  if(db.prepare("SELECT COUNT(*) c FROM organizations WHERE id<>'platform'").get().c>0)return;
   const tx=db.transaction(()=>{
-    const addOrg=db.prepare("INSERT INTO organizations(id,name,plan,users,active_projects,documents_processed,ai_requests) VALUES (?,?,?,?,?,?,?)");
     organizations.forEach(o=>addOrg.run(o.id,o.name,o.plan,o.users,o.activeProjects,o.documentsProcessed,o.aiRequests));
-    // Super Admin is platform-scoped, so keep a dedicated platform tenant for FK integrity.
-    addOrg.run("platform","Finotech AI Platform","Enterprise",0,0,0,0);
     const addUser=db.prepare("INSERT INTO users(id,name,email,password_hash,role,professional_role,organization_id,organization_name) VALUES (?,?,?,?,?,?,?,?)");
     demoUsers.forEach(u=>addUser.run(u.id,u.name,u.email,hash("demo123"),u.role,u.professionalRole,u.organizationId,u.organizationName));
     const addClient=db.prepare("INSERT INTO clients(id,name,company,industry,email,phone,fy,status,team,projects,documents,organization_id) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)");
