@@ -36,13 +36,13 @@ export async function login(email: string, password: string, role: Role): Promis
   return safe;
 }
 
-export async function signup(name: string, email: string, professionalRole: ProfessionalRole): Promise<User> {
+export async function signup(name: string, email: string, password: string, professionalRole: ProfessionalRole): Promise<User> {
   await delay(250);
   const users = readUsers();
   const normalized = email.trim().toLowerCase();
   if (!name.trim() || !normalized) throw new Error("Name and email are required.");
   if (users.some((u) => u.email.toLowerCase() === normalized)) throw new Error("An account with this email already exists.");
-  const next: StoredUser = { id: `u-${Date.now()}`, name: name.trim(), email: email.trim(), professionalRole, role: "Finance User", organizationId: "org-1", organizationName: "Meridian Advisory LLP", password: "welcome123" };
+  const next: StoredUser = { id: `u-${Date.now()}`, name: name.trim(), email: email.trim(), professionalRole, role: "Finance User", organizationId: "org-1", organizationName: "Meridian Advisory LLP", password };
   writeUsers([...users, next]);
   const { password: _password, ...safe } = next;
   return safe;
