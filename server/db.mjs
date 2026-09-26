@@ -2,7 +2,7 @@ import Database from "better-sqlite3";
 import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
-import { clients, compliance, demoUsers, documents, knowledgeBase, organizations, projects, tasks } from "../src/data/mockData.js";
+import { clients, compliance, demoUsers, documents, knowledgeBase, organizations, projects, tasks } from "./seed.mjs";
 
 const root=process.env.FINOTECH_DATA_DIR||path.resolve(process.cwd(),"server/data");
 fs.mkdirSync(root,{recursive:true});
