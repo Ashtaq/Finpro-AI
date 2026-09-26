@@ -1,0 +1,4 @@
+import { Clock3, Filter } from "lucide-react";
+import { auditLogs } from "../data/mockData";
+import { Badge, Button, PageHeader } from "../components/ui";
+export default function AuditLogs(){return <><PageHeader eyebrow="CONTROL & AUDIT" title="Activity / Audit Logs" description="Record logins, uploads, downloads, AI requests, report generation and permission changes." action={<Button variant="secondary"><Filter size={15}/> Filter logs</Button>}/><div className="table-panel"><table><thead><tr><th>Actor</th><th>Action</th><th>Resource</th><th>Timestamp</th><th>Context</th></tr></thead><tbody>{auditLogs.map(a=><tr key={a.id}><td><strong>{a.actor}</strong></td><td><Badge tone="info">{a.action}</Badge></td><td>{a.resource}</td><td>{a.timestamp}</td><td><span className="inline-meta"><Clock3 size={14}/> server-side event</span></td></tr>)}</tbody></table></div></>;}

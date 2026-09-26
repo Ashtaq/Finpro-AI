@@ -1,0 +1,28 @@
+import { FormEvent, useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
+import { ArrowLeft, Sparkles } from "lucide-react";
+import { useAuth } from "../context/AuthContext";
+import { ProfessionalRole } from "../types";
+
+const roles: ProfessionalRole[] = ["CA","CS","CFA","Financial Analyst","Accountant","Auditor","Finance Manager","Investment Analyst","Consultant","Other"];
+
+export default function Signup() {
+  const { signup } = useAuth(); const navigate = useNavigate();
+  const [name,setName]=useState(""); const [email,setEmail]=useState(""); const [phone,setPhone]=useState(""); const [password,setPassword]=useState(""); const [confirm,setConfirm]=useState(""); const [professionalRole,setProfessionalRole]=useState<ProfessionalRole>("CA"); const [country,setCountry]=useState("India"); const [terms,setTerms]=useState(false); const [error,setError]=useState("");
+
+  const submit=async(e:FormEvent)=>{e.preventDefault();setError("");if(password!==confirm)return setError("Passwords do not match.");if(!terms)return setError("Accept the terms to continue.");try{await signup(name,email,professionalRole);navigate("/");}catch(err){setError(err instanceof Error?err.message:"Signup failed");}};
+  return <div className="auth-shell"><div className="auth-brand"><div className="brand-mark large"><Sparkles size={22}/></div><div><div className="brand-name">FINOTECH</div><div className="brand-sub">AI FINANCE OS</div></div></div><div className="auth-card wide-card"><Link className="back-link" to="/login"><ArrowLeft size={15}/> Back to sign in</Link><div className="eyebrow">NEW WORKSPACE</div><h1>Create your finance workspace</h1><p className="auth-muted">Public signup creates a Finance User account. Admin and Super Admin assignment stays under backend authorization.</p>
+    <form onSubmit={submit} className="form-grid">
+      <label>Full name<input value={name} onChange={e=>setName(e.target.value)} required /></label>
+      <label>Email<input type="email" value={email} onChange={e=>setEmail(e.target.value)} required /></label>
+      <label>Phone<input value={phone} onChange={e=>setPhone(e.target.value)} /></label>
+      <label>Professional role<select value={professionalRole} onChange={e=>setProfessionalRole(e.target.value as ProfessionalRole)}>{roles.map(r=><option key={r}>{r}</option>)}</select></label>
+      <label>Password<input type="password" value={password} onChange={e=>setPassword(e.target.value)} required /></label>
+      <label>Confirm password<input type="password" value={confirm} onChange={e=>setConfirm(e.target.value)} required /></label>
+      <label>Organization<input placeholder="Your firm / company" /></label><label>Country<input value={country} onChange={e=>setCountry(e.target.value)} /></label>
+      <label className="checkbox-label full"><input type="checkbox" checked={terms} onChange={e=>setTerms(e.target.checked)}/> I agree to the terms & conditions and professional-review requirements.</label>
+      {error && <div className="error-box full">{error}</div>}
+      <button className="btn btn-primary wide full" type="submit">Create account</button>
+    </form>
+  </div><div className="auth-footer">Secure multi-tenant architecture ready for backend integration.</div></div>;
+}

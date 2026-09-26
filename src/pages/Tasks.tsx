@@ -1,0 +1,8 @@
+import { useState } from "react";
+import { CheckCircle2, Clock3, ListTodo, Plus } from "lucide-react";
+import { tasks as seed } from "../data/mockData";
+import { Badge, Button, PageHeader } from "../components/ui";
+import { Task } from "../types";
+
+const cols: Task["status"][]=["To Do","In Progress","Review","Completed"];
+export default function Tasks(){const [rows,setRows]=useState(seed);const move=(id:string,status:Task["status"])=>setRows(rows.map(t=>t.id===id?{...t,status}:t));return <><PageHeader eyebrow="OPERATIONS" title="Task Management" description="Assign work, track status, add comments and keep deliverables aligned to project deadlines." action={<Button><Plus size={15}/> New task</Button>}/><div className="task-board">{cols.map(status=><div className="task-col" key={status}><div className="task-col-head"><div><strong>{status}</strong><span>{rows.filter(t=>t.status===status).length} tasks</span></div><Plus size={15}/></div>{rows.filter(t=>t.status===status).map(t=><div className="task-card" key={t.id}><div className="task-card-top"><Badge tone={t.priority==="High"?"danger":t.priority==="Medium"?"warning":"default"}>{t.priority}</Badge><ListTodo size={15}/></div><h3>{t.title}</h3><p>{t.client}</p><div className="task-meta"><span>{t.assignee}</span><span><Clock3 size={13}/> {t.due}</span></div>{status!=="Completed"&&<div className="task-next">{cols.slice(cols.indexOf(status)+1).map(s=><button onClick={()=>move(t.id,s)} key={s} title={`Move to ${s}`}>Move → {s}</button>)}</div>}{status==="Completed"&&<div className="completed"><CheckCircle2 size={14}/> Completed</div>}</div>)}</div>)}</div></>;}

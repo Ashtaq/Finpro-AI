@@ -1,0 +1,4 @@
+import { BookOpen, FileText, Plus, Search } from "lucide-react";
+import { knowledgeBase } from "../data/mockData";
+import { Badge, Button, PageHeader } from "../components/ui";
+export default function KnowledgeBase(){return <><PageHeader eyebrow="ORGANIZATION KNOWLEDGE" title="Knowledge Base" description="Internal policies, SOPs, templates, methodologies and previous reports available to authorized AI workflows." action={<Button><Plus size={15}/> Add resource</Button>}/><div className="toolbar"><div className="search-box light"><Search size={16}/><input placeholder="Search knowledge..."/></div><Badge tone="info">Organization scoped</Badge></div><div className="knowledge-grid">{knowledgeBase.map(k=><div className="knowledge-card" key={k.id}><div className="knowledge-icon"><BookOpen size={18}/></div><div><Badge>{k.kind}</Badge><h3>{k.title}</h3><p>Owner: {k.owner}</p><span>Updated {k.updated}</span></div><FileText size={16}/></div>)}</div></>;}

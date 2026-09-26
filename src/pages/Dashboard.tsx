@@ -1,0 +1,22 @@
+import { useEffect, useState } from "react";
+import { Activity, BrainCircuit, CalendarDays, FileCheck2, FileText, FolderOpen, Users, WalletCards } from "lucide-react";
+import { ResponsiveContainer, AreaChart, Area, CartesianGrid, XAxis, YAxis, Tooltip, BarChart, Bar } from "recharts";
+import { MetricCard, PageHeader, Badge, Button } from "../components/ui";
+import { useAuth } from "../context/AuthContext";
+import { fetchDashboard } from "../services/mockApi";
+import { projects, clients, documents, tasks, compliance } from "../data/mockData";
+
+const activity = [{month:"Apr",value:38},{month:"May",value:52},{month:"Jun",value:61},{month:"Jul",value:69},{month:"Aug",value:78},{month:"Sep",value:94}];
+const agentData = [{name:"Finance",value:44},{name:"Tax",value:18},{name:"Audit",value:12},{name:"Excel",value:15},{name:"Docs",value:11}];
+
+export default function Dashboard(){
+ const {user}=useAuth(); const [stats,setStats]=useState<any>(null);
+ useEffect(()=>{fetchDashboard(user!.role).then(setStats)},[user]);
+ return <><PageHeader eyebrow="OVERVIEW" title={`Good evening, ${user?.name.split(" ")[0]}.`} description="A focused view of projects, documents, AI activity and upcoming work." action={<Button variant="secondary">Export dashboard</Button>}/>
+ <div className="metric-grid">{[[ "Total Clients",stats?.clients??"—",<Users size={18}/>,"+8% vs last month"],["Active Projects",stats?.activeProjects??"—",<FolderOpen size={18}/>,"6 due this week"],["Documents",stats?.documents??"—",<FileText size={18}/>,"12 processing"],["AI Analyses",stats?.aiAnalyses??"—",<BrainCircuit size={18}/>,"+18% usage"],["Reports Generated",stats?.reports??"—",<FileCheck2 size={18}/>,"9 this week"],["Pending Tasks",stats?.pendingTasks??"—",<Activity size={18}/>,"3 high priority"],["Upcoming Deadlines",stats?.upcomingDeadlines??"—",<CalendarDays size={18}/>,"1 overdue"],["AI Usage",stats?.aiUsage??"—",<WalletCards size={18}/>,"this billing cycle"]].map(([l,v,i,d])=><MetricCard key={String(l)} label={String(l)} value={v as any} icon={i} delta={String(d)}/>)}</div>
+ <div className="grid-2"><div className="panel"><div className="panel-head"><div><h2>Workspace activity</h2><p>Project and AI workflow activity</p></div><Badge tone="success">Live demo</Badge></div><div className="chart-box"><ResponsiveContainer width="100%" height="100%"><AreaChart data={activity}><CartesianGrid vertical={false}/><XAxis dataKey="month"/><YAxis/><Tooltip/><Area type="monotone" dataKey="value" fill="rgba(55,132,255,.15)" stroke="#3784ff" strokeWidth={2}/></AreaChart></ResponsiveContainer></div></div>
+ <div className="panel"><div className="panel-head"><div><h2>Agent usage</h2><p>Distribution of AI requests</p></div></div><div className="chart-box"><ResponsiveContainer width="100%" height="100%"><BarChart data={agentData} layout="vertical"><CartesianGrid horizontal={false}/><XAxis type="number"/><YAxis dataKey="name" type="category"/><Tooltip/><Bar dataKey="value" fill="#16233f" radius={[0,5,5,0]}/></BarChart></ResponsiveContainer></div></div></div>
+ <div className="grid-3"><div className="panel"><div className="panel-head"><h2>Recent projects</h2></div>{projects.slice(0,4).map(p=><div className="list-row" key={p.id}><div><strong>{p.name}</strong><span>{p.clientName}</span></div><Badge tone={p.status==="Active"?"success":"warning"}>{p.status}</Badge></div>)}</div><div className="panel"><div className="panel-head"><h2>Recent clients</h2></div>{clients.slice(0,4).map(c=><div className="list-row" key={c.id}><div><strong>{c.company}</strong><span>{c.industry}</span></div><Badge>{c.status}</Badge></div>)}</div><div className="panel"><div className="panel-head"><h2>Upcoming work</h2></div>{tasks.slice(0,3).map(t=><div className="list-row" key={t.id}><div><strong>{t.title}</strong><span>{t.assignee} · due {t.due}</span></div><Badge tone={t.priority==="High"?"danger":t.priority==="Medium"?"warning":"default"}>{t.priority}</Badge></div>)}<div className="list-row"><div><strong>Compliance calendar</strong><span>{compliance.filter(c=>c.status!=="Overdue").length} upcoming items</span></div><CalendarDays size={16}/></div></div></div>
+ <div className="notice"><div><strong>Professional review required</strong><span>AI output is assistive analysis. Validate calculations, assumptions, source references and regulatory interpretations before client delivery or decision use.</span></div><Badge tone="info">Evidence-first AI</Badge></div>
+ </>;
+}
