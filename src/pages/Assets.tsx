@@ -1,0 +1,15 @@
+import { useEffect,useState } from "react";
+import { Building2,Car,Landmark,Plus,TrendingUp,WalletCards } from "lucide-react";
+import { IndividualAsset } from "../types";
+import { createAsset,listAssets } from "../services/individualApi";
+import "../individual.css";
+const icons:Record<string,any>={Bank:Landmark,Investments:TrendingUp,Property:Building2,Vehicle:Car};
+export default function Assets(){
+ const [assets,setAssets]=useState<IndividualAsset[]>([]);const [loading,setLoading]=useState(true);
+ useEffect(()=>{listAssets().then(setAssets).catch(()=>setAssets([])).finally(()=>setLoading(false));},[]);
+ const total=assets.reduce((s,a)=>s+a.value,0);
+ const add=async()=>{const a=await createAsset({name:"New asset",category:"Other",value:0,institution:""});setAssets(v=>[a,...v]);};
+ return <div className="page"><div className="page-header"><div><div className="eyebrow">PERSONAL FINANCES</div><h1>My Assets</h1><p className="page-subtitle">Maintain a year-round record of assets and liabilities that can support tax preparation.</p></div><button className="btn btn-primary" onClick={add}><Plus size={16}/> Add asset</button></div>
+ <div className="stat-grid"><div className="stat-card"><div className="stat-icon"><WalletCards size={19}/></div><div><div className="stat-label">Tracked assets</div><div className="stat-value">₹{(total/100000).toFixed(1)}L</div><div className="stat-note">{assets.length} records</div></div></div><div className="stat-card"><div className="stat-icon"><TrendingUp size={19}/></div><div><div className="stat-label">Investments</div><div className="stat-value">₹{(assets.filter(a=>a.category==="Investments").reduce((s,a)=>s+a.value,0)/100000).toFixed(1)}L</div><div className="stat-note">From asset register</div></div></div><div className="stat-card"><div className="stat-icon"><Building2 size={19}/></div><div><div className="stat-label">Property</div><div className="stat-value">₹{(assets.filter(a=>a.category==="Property").reduce((s,a)=>s+a.value,0)/100000).toFixed(1)}L</div><div className="stat-note">Declared value</div></div></div></div>
+ <section className="panel"><div className="panel-header"><div><h2>Asset register</h2><p className="panel-subtitle">{loading?"Loading your records...":"Values are user-maintained and should be supported by records when required."}</p></div></div><div className="table-wrap"><table className="data-table"><thead><tr><th>Asset</th><th>Category</th><th>Institution / location</th><th>Value</th></tr></thead><tbody>{assets.map(a=>{const Icon=icons[a.category]||WalletCards;return <tr key={a.id}><td><div className="cell-main"><Icon size={16}/><strong>{a.name}</strong></div></td><td>{a.category}</td><td>{a.institution}</td><td>₹{a.value.toLocaleString("en-IN")}</td></tr>})}</tbody></table></div></section></div>;
+}
