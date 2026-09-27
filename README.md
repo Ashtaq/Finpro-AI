@@ -1,135 +1,48 @@
 # Finotech AI — Finance Intelligence SaaS
 
-A production-oriented React + TypeScript + Vite frontend with a Node/Express + SQLite Phase 1 backend.
+Phase 2 adds a dedicated Individual workspace for employees, freelancers and small-business owners who manage their own finances and ITR preparation.
 
-## Phase 1 status
-
-Phase 1 now includes a local persistent data layer. The browser UI calls the API when it is available; the legacy demo fallback remains available for frontend-only preview.
-
-### Local database
-
-SQLite is stored on disk at `server/data/finotech.local.db` by default.
-
-Core tables:
-- organizations
-- users
-- clients
-- projects
-- documents
-- tasks
-- conversations
-- messages
-- conversation_files
-- compliance_items
-- knowledge_items
-- audit_logs
-- settings
-
-The schema is also checked into `server/schema.sql`.
-
-### Run locally
-
-Install frontend and backend dependencies:
+## Run locally
 
 ```bash
 npm install
 npm --prefix server install
-```
-
-Start the API:
-
-```bash
-npm run server:dev
-```
-
-Start the frontend in another terminal:
-
-```bash
-npm run dev
-```
-
-Or run both together:
-
-```bash
 npm run dev:full
 ```
 
-The API listens on `http://127.0.0.1:8787` and the frontend on `http://localhost:5173`.
+The frontend runs on http://localhost:5173. The professional API runs on http://127.0.0.1:8787 and the Individual tax API runs on http://127.0.0.1:8788.
 
-To point the frontend at a separately hosted API, set:
+## User types
+- Super Admin — platform administration
+- Admin — organization/team administration
+- Finance User — CA/CS/CFA/accounting/finance professional workspace
+- Individual — personal finance, asset management and ITR workspace
 
-```bash
-VITE_API_URL=http://your-api-host:8787
-```
+## Individual Phase 2 features
+- Individual signup and authentication
+- Personal finance dashboard
+- Personal asset register
+- Taxpayer profile foundation
+- ITR draft creation
+- ITR assessment-year and ITR-type metadata
+- Local validation workflow
+- Filing consent records
+- Filing lifecycle/event storage
+- ERI-ready submission boundary
+- e-Verification and acknowledgement lifecycle placeholders
 
-### Demo accounts
+## ITR integration boundary
+The application currently prepares and validates an ITR draft locally. The /api/individual/itr/:id/submit endpoint deliberately refuses external submission until an approved filing/ERI provider is configured.
 
-- Super Admin: `superadmin@finotech.demo`
-- Admin: `admin@finotech.demo`
-- Finance User: `finance@finotech.demo`
-- Password: `demo123`
+The Income Tax Department's published ERI API specifications describe a flow involving login/session, taxpayer consent for client/prefill services, prefill, validation/submission, e-Verification and acknowledgement. Finpro should implement those external calls behind a server-side provider abstraction rather than placing credentials or signing material in the browser.
 
-## Phase 1 production-readiness boundary
+## Individual workflow
+Signup → Individual Dashboard → Profile + Assets + Documents → Income / Deductions / Capital Gains → ITR Draft → Local Validation → Taxpayer Consent → Approved ERI Integration → Final Validation + Submit → e-Verify → Acknowledgement
 
-Implemented:
-- backend-controlled login/signup against SQLite
-- role-based user management and password resets
-- organization/tenant scoping on core API queries
-- client creation
-- project/document/task persistence and reads
-- task status updates / Kanban persistence
-- AI conversation + message persistence
-- audit log persistence
-- organization settings persistence
-- API health endpoint
-- local-disk upload storage contract
-- frontend-to-backend service abstraction
+AI should assist with document understanding and explanations; material tax calculations should remain deterministic and reviewable.
 
-Still intentionally Phase 2:
-- real LLM provider and streaming model responses
-- binary XLSX/CSV/PDF/DOCX parsing and OCR
-- object storage and signed download URLs
-- production session tokens / SSO / MFA
-- background document-processing workers
-- report generation/export pipeline
-- billing/payment provider integration
-- hosted database, backups, monitoring and alerting
-- full create/edit/delete UI for every domain module
+## Phase 1 professional workspace
+The original CA/CS/CFA workspace remains available with clients, projects, documents, AI assistants, financial analysis, reports, tasks, compliance, knowledge base, analytics, team management, audit and billing.
 
-Do not expose the SQLite file, `server/data`, or local uploads directly on a public production host.
-
-## Architecture
-
-```
-React + Vite
-   |
-   | HTTP / JSON
-   v
-Node + Express API
-   |
-   +--> SQLite (local Phase 1 persistence)
-   |
-   +--> local uploads directory
-   |
-   +--> audit + settings + AI conversation records
-
-Phase 2 extension points:
-   API -> PostgreSQL
-       -> object storage
-       -> background queue
-       -> document parser
-       -> LLM / RAG service
-       -> observability / billing
-```
-
-## Development notes
-
-AI provider keys belong on the server, never in the Vite bundle. AI output is assistive and requires professional review before client delivery or decision use.
-
-## Build
-
-```bash
-npm run build
-```
-
-For a deployable external environment, run the API as a separate service or use the Express server to serve the built frontend, after replacing local-disk persistence with managed infrastructure.
+## Production boundary
+Do not expose SQLite files or local uploads publicly. Production ITR filing also requires the appropriate Income Tax Department/ERI integration, credentials, consent handling, signing/security controls, validation and operational approval.
