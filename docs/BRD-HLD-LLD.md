@@ -1544,3 +1544,810 @@ The central product principle is:
 Architecture and product decisions should therefore prioritize:
 
 **Security → Authorization → Source Evidence → Deterministic Calculations → AI Reasoning → Human Review → Auditability**
+
+
+---
+
+# 49. Architecture & Implementation Update — 27 September 2026
+
+This section supersedes older statements that described the repository as frontend-only/localStorage. The repository now contains a working Phase 1 local backend foundation.
+
+## 49.1 Current Phase 1 Runtime
+
+The current development architecture is:
+
+```
+React + TypeScript + Vite
+        |
+        | HTTP / JSON
+        v
+Node.js + Express API
+        |
+        v
+SQLite (better-sqlite3)
+        |
+        +--> Local upload directory
+        |
+        +--> Audit logs
+        |
+        +--> AI conversation history
+```
+
+Development endpoints:
+
+- Frontend: `http://localhost:5173`
+- Professional API: `http://127.0.0.1:8787`
+- Health check: `GET /api/health`
+- SQLite database: `server/data/finotech.local.db`
+- Local uploads: `server/uploads`
+
+The Phase 1 local database is intentionally not a production database. The production target remains PostgreSQL plus managed object storage.
+
+## 49.2 Current Backend Stack
+
+Implemented:
+
+- Node.js
+- Express 5
+- better-sqlite3
+- CORS
+- JSON REST APIs
+- Local filesystem storage foundation
+- Seed/bootstrap data
+- Organization-aware authorization
+- Audit logging
+- Persistent AI conversation/message storage
+
+The backend is started with:
+
+```bash
+npm run server:dev
+```
+
+The frontend is started with:
+
+```bash
+npm run dev
+```
+
+For both:
+
+```bash
+npm run dev:full
+```
+
+## 49.3 Current Authentication Flow
+
+Phase 1 now uses backend-controlled authentication when the API is available.
+
+```
+Login form
+   |
+   v
+POST /api/auth/login
+   |
+   v
+SQLite users table
+   |
+   +--> email
+   +--> password hash
+   +--> role
+   +--> organization
+   |
+   v
+Authenticated user context
+```
+
+Supported roles:
+
+- Super Admin
+- Admin
+- Finance User
+- Individual
+
+The current local demo accounts are documented in the repository README. The demo password is for local development only.
+
+### Production authentication gap
+
+The current local Phase 1 password hashing uses SHA-256 for development compatibility. This MUST be replaced by Argon2id or an equivalent password-password-hashing mechanism before production launch. Production sessions should use secure server-side sessions or short-lived access tokens with refresh-token rotation.
+
+## 49.4 Current User Management
+
+Implemented API capabilities:
+
+- `GET /api/users`
+- `POST /api/users`
+- `PATCH /api/users/:id`
+- `DELETE /api/users/:id`
+- `POST /api/users/:id/reset-password`
+
+Authorization rules currently implemented:
+
+- Super Admin can manage permitted users across organizations.
+- Admin can manage Finance Users in the Admin's organization.
+- Finance Users cannot manage users.
+- Cross-organization user creation/update is blocked for Admins.
+- Deactivation is preferred over physical deletion for managed users.
+
+## 49.5 Current Core APIs
+
+The Phase 1 local API includes:
+
+### Authentication
+
+- `POST /api/auth/login`
+- `POST /api/auth/signup`
+
+### Dashboard
+
+- `GET /api/dashboard`
+
+### Users
+
+- `GET /api/users`
+- `POST /api/users`
+- `PATCH /api/users/:id`
+- `DELETE /api/users/:id`
+- `POST /api/users/:id/reset-password`
+
+### Clients
+
+- `GET /api/clients`
+- `POST /api/clients`
+
+### Projects
+
+- `GET /api/projects`
+
+### Documents
+
+- `GET /api/documents`
+- `POST /api/documents`
+
+### Tasks
+
+- `GET /api/tasks`
+- `PATCH /api/tasks/:id`
+
+### Compliance
+
+- `GET /api/compliance`
+
+### Knowledge Base
+
+- `GET /api/knowledge-base`
+
+### Audit
+
+- `GET /api/audit-logs`
+
+### AI Assistant
+
+- `POST /api/assistant/conversations`
+- `GET /api/assistant/history`
+- `POST /api/assistant/conversations/:id/messages`
+
+### Settings
+
+- `GET /api/settings`
+- `PUT /api/settings`
+
+### Upload status
+
+- `GET /api/uploads/status`
+
+These are Phase 1 local API paths. The production API should move to a versioned contract such as `/api/v1/*` after the domain model stabilizes.
+
+## 49.6 Current Database Implementation
+
+Phase 1 uses SQLite with the following core tables:
+
+- organizations
+- users
+- clients
+- projects
+- documents
+- tasks
+- conversations
+- messages
+- conversation_files
+- compliance_items
+- knowledge_items
+- audit_logs
+- settings
+
+Every tenant-owned table contains an organization relationship where appropriate.
+
+The database is initialized from `server/schema.sql` and bootstrapped with local seed data.
+
+## 49.7 Current Task Workflow
+
+The Kanban workflow is persisted through the backend:
+
+```
+To Do
+  |
+  v
+In Progress
+  |
+  v
+Review
+  |
+  v
+Completed
+```
+
+Task status changes are sent to the API and recorded in the audit log.
+
+The UI should retain optimistic updates with rollback on API failure.
+
+## 49.8 Current AI Phase 1 Boundary
+
+The AI Assistant now persists:
+
+- Conversations
+- User messages
+- Assistant messages
+- Project association
+- Agent identifier
+- AI request usage
+- Audit events
+
+The current backend response is a structured/mock response. It does NOT yet provide production-grade:
+
+- LLM provider integration
+- XLSX/CSV semantic parsing
+- PDF/DOCX extraction
+- OCR
+- Embeddings
+- Vector retrieval
+- Source-page/cell-level citations
+- Deterministic tax calculation engine
+
+These are explicitly Phase 2/3 capabilities.
+
+---
+
+# 50. ITR Filing Product Extension
+
+Finotech AI will be extended with a dedicated **ITR Filing** capability for Indian tax workflows.
+
+The ITR module is designed as a professional preparation, review, reconciliation and filing workflow rather than an AI-only answer generator.
+
+## 50.1 ITR Product Objective
+
+The objective is to allow a finance professional to:
+
+```
+Collect
+  ↓
+Import / Upload
+  ↓
+Extract
+  ↓
+Reconcile
+  ↓
+Compute
+  ↓
+Validate
+  ↓
+Review
+  ↓
+Client Approval
+  ↓
+Generate Filing Data
+  ↓
+Approved Filing Integration
+  ↓
+e-Verify
+  ↓
+Acknowledgement
+```
+
+Human review remains mandatory for material tax decisions.
+
+## 50.2 Proposed ITR Workspace
+
+Each client can have one or more assessment-year returns.
+
+Example:
+
+```
+Client: ABC Private Limited
+Assessment Year: 2026-27
+Return: ITR-6
+Status: Under Review
+
+Sections
+├── Taxpayer Profile
+├── Income
+├── Business / Profession
+├── House Property
+├── Capital Gains
+├── Deductions
+├── TDS / TCS
+├── Tax Computation
+├── Reconciliation
+├── Validation
+├── Review
+├── Filing
+└── Acknowledgement
+```
+
+## 50.3 ITR Data Sources
+
+The system should support ingestion of:
+
+- Form 16
+- AIS
+- TIS
+- Form 26AS
+- Bank statements
+- Trial balance
+- Profit & Loss
+- Balance Sheet
+- Capital account
+- Demat/capital-gains statements
+- Interest certificates
+- Dividend information
+- Rent information
+- Deduction/supporting documents
+- Previous-year ITR data
+- Department-provided pre-filled data where the approved integration permits it
+
+## 50.4 ITR Reconciliation
+
+A dedicated reconciliation engine should compare independent sources.
+
+Example:
+
+```
+                 AIS       Books      ITR
+
+Salary          ₹12.40L    ₹12.40L    ₹12.40L     ✓
+Interest         ₹42.5K     ₹41.8K     ₹41.8K     ⚠
+Dividend         ₹18.2K     ₹18.2K     ₹18.2K     ✓
+TDS              ₹1.24L     ₹1.24L     ₹1.24L     ✓
+```
+
+The system should identify:
+
+- Missing income
+- Duplicate income
+- TDS mismatch
+- Capital-gain mismatch
+- Interest mismatch
+- Bank-account mismatch
+- Unsupported deduction
+- Data-quality issues
+
+## 50.5 Deterministic Tax Engine
+
+Tax computation MUST NOT depend solely on an LLM.
+
+The calculation engine should produce:
+
+- Gross total income
+- Income-head totals
+- Eligible deductions
+- Taxable income
+- Applicable tax
+- Rebate where applicable
+- Cess
+- TDS/TCS
+- Advance tax
+- Self-assessment tax
+- Refund/payable
+- Calculation trace
+
+Each material calculation should retain:
+
+- Formula
+- Input values
+- Source
+- Rule/version
+- Result
+- Validation status
+
+The AI layer can explain the calculation but must not replace the deterministic calculation engine.
+
+## 50.6 ITR Form Support
+
+The architecture should support the ITR form family applicable to the taxpayer and assessment year, including:
+
+- ITR-1
+- ITR-2
+- ITR-3
+- ITR-4
+- ITR-5
+- ITR-6
+- ITR-7
+
+Eligibility must be evaluated against the official rules applicable to the relevant assessment year.
+
+## 50.7 Maker-Checker Workflow
+
+The ITR module should support:
+
+```
+Maker
+  ↓
+AI/Data Validation
+  ↓
+Reviewer / CA
+  ↓
+Corrections
+  ↓
+Final Review
+  ↓
+Client Approval
+  ↓
+Ready to File
+```
+
+Review records should capture:
+
+- Prepared by
+- Reviewed by
+- Review date
+- Review comments
+- Issues raised
+- Issues resolved
+- Client approval
+- Final filing state
+
+## 50.8 ITR Validation
+
+Before filing, the system should run:
+
+- PAN/taxpayer validation
+- Assessment-year validation
+- ITR-form eligibility checks
+- Mandatory-field validation
+- Income schedule validation
+- Deduction validation
+- TDS/TCS reconciliation
+- Bank-detail validation
+- Tax computation validation
+- Return-schema validation
+- Supporting-document checks
+
+The UI should clearly separate:
+
+- Errors — filing blocked
+- Warnings — professional review required
+- Information — no blocking issue
+
+## 50.9 Filing Integration Boundary
+
+Finotech should NOT automate browser login to the Income Tax portal using a professional's credentials.
+
+The production design should use an approved server-side filing/ERI integration where applicable.
+
+The architecture is:
+
+```
+Finotech ITR Engine
+        |
+        v
+Final Validation
+        |
+        v
+Filing Provider / Approved ERI Integration
+        |
+        v
+Income Tax Department
+        |
+        +--> Filing Status
+        +--> e-Verification
+        +--> Acknowledgement
+```
+
+Provider credentials, consent, signing material and sensitive integration secrets must remain server-side.
+
+Until an approved provider is configured, Finotech should stop at **Ready to File / Generate Filing Data** rather than pretending that a return was submitted.
+
+## 50.10 ITR Proposed Database Model
+
+The production model should add entities such as:
+
+- itr_profiles
+- itr_returns
+- itr_income
+- itr_deductions
+- itr_tds
+- itr_capital_gains
+- itr_house_property
+- itr_business_income
+- itr_bank_accounts
+- itr_reconciliations
+- itr_validations
+- itr_reviews
+- itr_filings
+- itr_filing_events
+- itr_documents
+
+Every ITR record must be linked to:
+
+- Organization
+- Client/taxpayer
+- Assessment year
+- Return type
+- User/auditor/reviewer
+- Source documents
+- Audit trail
+
+## 50.11 ITR APIs — Target Contract
+
+Target APIs should include:
+
+- `GET /api/v1/itr/returns`
+- `POST /api/v1/itr/returns`
+- `GET /api/v1/itr/returns/:id`
+- `PATCH /api/v1/itr/returns/:id`
+- `POST /api/v1/itr/returns/:id/documents`
+- `POST /api/v1/itr/returns/:id/reconcile`
+- `POST /api/v1/itr/returns/:id/calculate`
+- `POST /api/v1/itr/returns/:id/validate`
+- `POST /api/v1/itr/returns/:id/review`
+- `POST /api/v1/itr/returns/:id/client-approval`
+- `POST /api/v1/itr/returns/:id/generate-json`
+- `POST /api/v1/itr/returns/:id/submit`
+- `GET /api/v1/itr/returns/:id/events`
+
+The `submit` operation must remain disabled until the approved filing provider/ERI integration is configured and the required consent/security controls are active.
+
+---
+
+# 51. ITR Delivery Roadmap
+
+## ITR Phase A — Preparation Foundation
+
+- Taxpayer profile
+- Assessment-year selection
+- ITR-type metadata
+- Income data model
+- Deductions data model
+- TDS data model
+- Capital gains data model
+- Supporting documents
+- Local validation
+- Draft lifecycle
+- Audit trail
+
+## ITR Phase B — Intelligence
+
+- Form 16 extraction
+- AIS/TIS/26AS ingestion
+- Bank statement parsing
+- Trial-balance parsing
+- Capital-gain extraction
+- Source reconciliation
+- Mismatch detection
+- Previous-year comparison
+- Deterministic tax engine
+- AI explanations
+
+## ITR Phase C — Professional Review
+
+- Maker-checker
+- CA review
+- Issue tracking
+- Client approval
+- Filing readiness
+- Filing JSON/schema validation
+
+## ITR Phase D — Filing Integration
+
+- Approved ERI/provider integration
+- Secure credentials
+- Taxpayer/client consent
+- Prefill where permitted
+- Final validation
+- Submission
+- e-Verification workflow
+- Acknowledgement retrieval
+- Filing status tracking
+
+---
+
+# 52. Updated Phase Plan
+
+## Phase 1 — Local Professional Workspace Foundation — CURRENT
+
+Completed/founded:
+
+- React/Vite frontend
+- Node/Express local API
+- SQLite database
+- Database schema
+- Seed/bootstrap data
+- Backend authentication
+- Role-based user management
+- Organization scoping
+- Client/project/document/task persistence foundation
+- AI conversation persistence foundation
+- Compliance/knowledge/audit APIs
+- Settings API
+- Local upload storage foundation
+- Kanban task persistence
+- Phase 1 runbook
+
+Remaining before external production launch:
+
+- Production authentication
+- PostgreSQL
+- Object storage
+- Real file upload pipeline
+- File parsing/OCR
+- LLM provider
+- RAG/vector search
+- Deterministic financial/tax engines
+- Security hardening
+- Monitoring
+- Backups
+- CI/CD
+- E2E/security testing
+
+## Phase 2 — Document Intelligence + Tax/ITR Preparation
+
+- PDF/XLSX/CSV/DOCX extraction
+- OCR
+- AIS/TIS/26AS workflows
+- ITR data model
+- Tax computation engine
+- ITR reconciliation
+- ITR validation
+- Maker-checker review
+- Client approval
+- Filing-data generation
+
+## Phase 3 — Production AI Platform
+
+- LLM gateway
+- RAG
+- Vector store
+- Evidence/citations
+- Financial calculation engine
+- AI usage metering
+- Prompt-injection controls
+- Background workers
+
+## Phase 4 — Filing Integration
+
+- Approved ERI/provider integration
+- Consent
+- Prefill
+- Submission
+- e-Verification
+- Acknowledgement
+- Filing status
+
+## Phase 5 — Enterprise SaaS
+
+- PostgreSQL
+- Object storage
+- Redis
+- SSO
+- MFA
+- SCIM
+- Billing
+- Advanced analytics
+- Enterprise audit
+- DR/BCP
+- Enterprise SLA
+
+---
+
+# 53. Updated Product Navigation
+
+Recommended product navigation:
+
+```
+Dashboard
+
+WORKSPACE
+├── Clients
+├── Projects
+├── Documents
+└── Tasks
+
+TAX
+├── ITR Filing
+├── Tax Computation
+├── Tax Reconciliation
+├── TDS
+├── Capital Gains
+└── Compliance
+
+AI
+├── AI Assistant
+├── AI Workspace
+├── AI Agents
+└── Financial Analysis
+
+KNOWLEDGE
+├── Knowledge Base
+└── Tax Library
+
+ADMIN
+├── Team
+├── Organizations
+├── Audit Logs
+├── Billing
+└── Settings
+```
+
+The Individual workspace can expose a simplified personal-finance/ITR navigation while keeping professional organization workspaces separate.
+
+---
+
+# 54. Updated Production Readiness Rules
+
+The following rules are mandatory before Finotech is marketed as a production tax-filing system:
+
+1. Do not expose SQLite as the production database.
+2. Do not expose local upload directories publicly.
+3. Replace development password hashing with Argon2id or an approved equivalent.
+4. Implement secure sessions/tokens and CSRF/session controls as applicable.
+5. Implement tenant isolation and object-level authorization.
+6. Implement encrypted object storage and signed access URLs.
+7. Implement malware scanning and file-type validation.
+8. Implement deterministic tax calculations.
+9. Version tax rules by assessment year.
+10. Validate generated filing data against the applicable official schema.
+11. Keep AI output distinguishable from deterministic tax calculations.
+12. Require human review for material tax outputs.
+13. Maintain complete filing and calculation audit trails.
+14. Implement consent and approval records.
+15. Use an approved filing/ERI integration for actual submission.
+16. Never store provider secrets or signing material in the browser.
+17. Implement backup, monitoring, incident response and recovery.
+18. Complete security, privacy and professional-compliance review before production filing is enabled.
+
+---
+
+# 55. Updated Definition of Done
+
+### Phase 1 local MVP
+
+- [x] React/Vite application runs locally
+- [x] Node/Express API runs locally
+- [x] SQLite schema exists
+- [x] Seed/bootstrap data exists
+- [x] Backend login exists
+- [x] Super Admin/Admin/Finance User authorization exists
+- [x] User management APIs exist
+- [x] Client/project/document/task persistence foundation exists
+- [x] AI conversation persistence exists
+- [x] Audit logging foundation exists
+- [x] Local development runbook exists
+
+### Production professional workspace
+
+- [ ] PostgreSQL
+- [ ] Secure authentication
+- [ ] Production RBAC
+- [ ] Object storage
+- [ ] Real document processing
+- [ ] Production AI/RAG
+- [ ] Deterministic financial calculations
+- [ ] Monitoring and backups
+- [ ] Security testing
+- [ ] CI/CD
+
+### Production ITR platform
+
+- [ ] ITR data model
+- [ ] Assessment-year tax rules
+- [ ] Deterministic tax engine
+- [ ] AIS/TIS/26AS reconciliation
+- [ ] ITR schema validation
+- [ ] Maker-checker review
+- [ ] Client approval
+- [ ] Filing provider/ERI integration
+- [ ] e-Verification
+- [ ] Acknowledgement tracking
+- [ ] Filing audit trail
+
+---
