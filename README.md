@@ -46,3 +46,89 @@ The original CA/CS/CFA workspace remains available with clients, projects, docum
 
 ## Production boundary
 Do not expose SQLite files or local uploads publicly. Production ITR filing also requires the appropriate Income Tax Department/ERI integration, credentials, consent handling, signing/security controls, validation and operational approval.
+
+## Latest architecture update — 27 September 2026
+
+The repository now includes a **Phase 1 local backend foundation** for the professional workspace:
+
+- Node.js + Express API
+- SQLite via better-sqlite3
+- Backend-controlled login and signup
+- Super Admin / Admin / Finance User role controls
+- Organization-scoped user management
+- Persistent clients, projects, documents, tasks and AI conversations
+- Compliance, knowledge-base, settings and audit APIs
+- Local upload-storage foundation
+- Seed/bootstrap data for local development
+- Persistent Kanban task status updates
+
+### Local services
+
+| Service | URL |
+|---|---|
+| React/Vite frontend | http://localhost:5173 |
+| Professional API | http://127.0.0.1:8787 |
+| API health | http://127.0.0.1:8787/api/health |
+| SQLite database | `server/data/finotech.local.db` |
+| Local uploads | `server/uploads` |
+
+Run:
+
+```bash
+npm install
+npm --prefix server install
+npm run dev:full
+```
+
+If the frontend is started separately, configure:
+
+```env
+VITE_API_URL=http://127.0.0.1:8787
+```
+
+### Current Phase 1 boundary
+
+The local backend is a development foundation, not the final production architecture. Before external production launch, migrate to PostgreSQL, use managed object storage, implement production-grade password hashing/session security, add document parsing/OCR, real LLM/RAG integration, deterministic financial/tax calculation services, monitoring, backups and security testing.
+
+## ITR roadmap
+
+Finotech AI is being extended with a dedicated **ITR Filing** workflow for Indian tax professionals and, where applicable, individual taxpayers.
+
+Target workflow:
+
+```
+Client / Taxpayer
+   ↓
+Assessment Year + ITR Type
+   ↓
+Documents / AIS / TIS / 26AS / Books
+   ↓
+Extraction
+   ↓
+Reconciliation
+   ↓
+Deterministic Tax Computation
+   ↓
+Validation
+   ↓
+CA / Reviewer
+   ↓
+Client Approval
+   ↓
+Filing Data / JSON
+   ↓
+Approved Filing / ERI Integration
+   ↓
+e-Verification
+   ↓
+Acknowledgement
+```
+
+The product should use AI for extraction, explanations, anomaly detection and workflow assistance, while material tax calculations remain deterministic and reviewable.
+
+**Direct filing is not enabled merely by adding an AI agent or browser automation.** Production submission must use the appropriate approved Income Tax Department/ERI integration, server-side credentials/consent/security controls and applicable validation requirements.
+
+See:
+
+- `docs/BRD-HLD-LLD.md` — master product, architecture and implementation specification
+- `docs/ITR-FILING-SPEC.md` — ITR product and technical specification
