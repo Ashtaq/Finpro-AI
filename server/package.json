@@ -1,8 +1,5 @@
 {
-  "name": "finotech-ai-local-api",
-  "private": true,
-  "version": "1.0.0",
-  "type": "module",
-  "scripts": { "dev": "node --watch index.mjs", "start": "node index.mjs" },
-  "dependencies": { "better-sqlite3": "^11.10.0", "cors": "^2.8.5", "express": "^5.1.0" }
+  "name":"finotech-ai-local-api","private":true,"version":"1.1.0","type":"module",
+  "scripts":{"dev":"node --watch index.mjs","dev:individual":"node --watch individual-api.mjs","start":"node index.mjs","start:individual":"node individual-api.mjs"},
+  "dependencies":{"better-sqlite3":"^11.10.0","cors":"^2.8.5","express":"^5.1.0"}
 }
