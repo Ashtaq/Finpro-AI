@@ -3,6 +3,7 @@ import { Link,useNavigate } from "react-router-dom";
 import { ArrowLeft,Sparkles } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import { ProfessionalRole,Role } from "../types";
+import "../individual.css";
 const roles:ProfessionalRole[]=["CA","CS","CFA","Financial Analyst","Accountant","Auditor","Finance Manager","Investment Analyst","Consultant","Other"];
 export default function Signup(){
  const {signup}=useAuth();const navigate=useNavigate();const [accountType,setAccountType]=useState<Role>("Individual");const [name,setName]=useState("");const [email,setEmail]=useState("");const [password,setPassword]=useState("");const [confirm,setConfirm]=useState("");const [professionalRole,setProfessionalRole]=useState<ProfessionalRole>("Other");const [terms,setTerms]=useState(false);const [error,setError]=useState("");
