@@ -126,6 +126,16 @@ app.post("/api/clients",(req,res)=>{
 });
 
 app.get("/api/projects",(req,res)=>{const actor=auth(req,res);if(!actor)return;if(actor.role==="Individual")return res.status(403).json({error:"Project workspace is not available to Individual users."});res.json(orgQuery(actor,"projects").map(parseProject));});
+app.post("/api/projects",(req,res)=>{
+  const actor=auth(req,res);if(!actor)return;if(actor.role==="Individual")return res.status(403).json({error:"Project workspace is not available to Individual users."});
+  const b=req.body||{}, client=db.prepare("SELECT * FROM clients WHERE id=? AND organization_id=?").get(b.clientId,actor.organization_id);
+  if(!client)return res.status(404).json({error:"Client not found in your organization."});
+  if(!String(b.name||"").trim())return res.status(400).json({error:"Project name is required."});
+  const id=crypto.randomUUID();
+  db.prepare("INSERT INTO projects(id,name,client_id,client_name,type,fy,currency,status,priority,start_date,end_date,team_json,tags_json,organization_id) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)").run(id,String(b.name).trim(),client.id,client.company,String(b.type||"Financial Analysis"),String(b.fy||client.fy||"FY 2025-26"),String(b.currency||"INR"),String(b.status||"Draft"),String(b.priority||"Medium"),String(b.startDate||new Date().toISOString().slice(0,10)),String(b.endDate||new Date().toISOString().slice(0,10)),JSON.stringify(Array.isArray(b.team)?b.team:[]),JSON.stringify(Array.isArray(b.tags)?b.tags:[]),actor.organization_id);
+  db.prepare("UPDATE clients SET projects=projects+1 WHERE id=?").run(client.id);
+  const out=parseProject(db.prepare("SELECT * FROM projects WHERE id=?").get(id));audit(actor,"Create project",out.name,{clientId:client.id});res.status(201).json(out);
+});
 app.get("/api/documents",(req,res)=>{const actor=auth(req,res);if(!actor)return;res.json(orgQuery(actor,"documents").map(parseDocument));});
 app.post("/api/documents",(req,res)=>{
   const actor=auth(req,res);if(!actor)return;const b=req.body||{};
