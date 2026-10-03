@@ -1,5 +1,5 @@
 import { NavLink, Outlet } from "react-router-dom";
-import { BarChart3, Bell, BookOpen, BriefcaseBusiness, CalendarClock, CheckSquare, ChevronDown, CircleHelp, ClipboardList, Database, FileBarChart, FileCheck2, FolderKanban, Gauge, Landmark, LayoutDashboard, LogOut, MessageSquareText, Search, Settings, ShieldCheck, Sparkles, Users, WalletCards } from "lucide-react";
+import { BarChart3, Bell, BookOpen, BriefcaseBusiness, CalendarClock, CheckSquare, ChevronDown, CircleHelp, ClipboardList, Database, FileBarChart, FileCheck2, FolderKanban, Gauge, Landmark, LayoutDashboard, LogOut, MessageSquareText, Search, Settings, Sparkles, Users } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 
 const professionalGroups = [
