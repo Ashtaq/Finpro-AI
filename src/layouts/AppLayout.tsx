@@ -5,14 +5,14 @@ import { useAuth } from "../context/AuthContext";
 const professionalGroups = [
  {title:"Workspace",items:[["/","Dashboard",LayoutDashboard,"analytics"],["/clients","Clients",Users,"clients"],["/projects","Projects",FolderKanban,"projects"],["/ai-agents","AI Agents",Sparkles,"ai"],["/ai-assistant","AI Assistant",MessageSquareText,"ai"],["/documents","Documents",Database,"documents"],["/analysis","Financial Analysis",BarChart3,"analysis"],["/reports","Reports",FileBarChart,"reports"]]},
  {title:"Operations",items:[["/tasks","Tasks",CheckSquare,"tasks"],["/compliance","Compliance",CalendarClock,"compliance"],["/knowledge-base","Knowledge Base",BookOpen,"knowledge"],["/analytics","Analytics",Gauge,"analytics"],["/team","Team",Users,"team"],["/audit-logs","Activity / Audit Logs",ClipboardList,"audit"]]},
- {title:"Administration",items:[["/platform","Platform Admin",ShieldCheck,"platform"],["/billing","Usage & Billing",WalletCards,"billing"],["/settings","Settings",Settings,"settings"]]}
+ {title:"Administration",items:[["/settings","Settings",Settings,"settings"]]}
 ] as const;
 const individualGroups = [
  {title:"My Finance",items:[["/individual","Dashboard",LayoutDashboard,"individual"],["/assets","My Assets",Landmark,"assets"],["/documents","Documents",Database,"documents"],["/itr-filing","ITR Filing",FileCheck2,"itr"],["/settings","Settings",Settings,"settings"]]}
 ] as const;
 
 export default function AppLayout(){
- const {user,logout,can}=useAuth(); const groups=user?.role==="Individual"?individualGroups:professionalGroups;
+ const {user,logout,can}=useAuth(); const groups=user?.role==="Individual"?individualGroups:user?.role==="Finance User"?professionalGroups.filter(g=>g.title==="Workspace"):professionalGroups;
  return <div className="app-shell"><aside className="sidebar">
   <div className="brand"><div className="brand-mark"><Sparkles size={18}/></div><div><div className="brand-name">FINOTECH</div><div className="brand-sub">AI FINANCE OS</div></div></div>
   <div className="org-switcher"><div className="org-avatar">{user?.organizationName.slice(0,1)}</div><div className="org-meta"><strong>{user?.organizationName}</strong><span>{user?.role}</span></div><ChevronDown size={15}/></div>
