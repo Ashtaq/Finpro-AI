@@ -63,9 +63,10 @@ export async function login(email: string, password: string, role: Role): Promis
   return safe;
 }
 
-export async function signup(name: string, email: string, password: string, professionalRole: ProfessionalRole, role: Role = "Finance User"): Promise<User> {
+export async function signup(name: string, email: string, password: string, professionalRole: ProfessionalRole, role: Role = "Finance User", kyc?: {kycRef:string;name:string;dob:string;pan:string}): Promise<User> {
+  if (!kyc?.kycRef) throw new Error("Complete Aadhaar and PAN verification with DigiLocker first.");
   if (await hasBackend()) {
-    const result = await request<{user: User}>("/api/auth/signup", {method:"POST", body:JSON.stringify({name,email,password,professionalRole,role})});
+    const result = await request<{user: User}>("/api/auth/signup", {method:"POST", body:JSON.stringify({name,email,password,professionalRole,role,kycRef:kyc.kycRef,kycName:kyc.name,kycDob:kyc.dob,kycPan:kyc.pan})});
     return result.user;
   }
   await delay(200);
