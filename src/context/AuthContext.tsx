@@ -9,7 +9,7 @@ const permissions:Record<Role,Set<string>>={
  "Finance User":new Set(["projects","documents","ai","analysis","reports","tasks","analytics","settings"]),
  "Individual":new Set(["individual","assets","documents","ai","itr","settings"])
 };
-const individualRequest=async<T>(path:string,body?:unknown):Promise<T>=>{
+const individualRequest=async <T,>(path:string,body?:unknown):Promise<T>=>{
  const response=await fetch(path,{
   method:"POST",
   headers:{"Content-Type":"application/json"},
