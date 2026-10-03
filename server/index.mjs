@@ -59,12 +59,12 @@ app.post("/api/auth/signup",(req,res)=>{
 app.get("/api/dashboard",(req,res)=>{
   const actor=auth(req,res);if(!actor)return;
   const scoped=(base)=>actor.role==="Super Admin"?base:`${base} WHERE organization_id=?`;
-  const args=actor.role==="Super Admin"?[]:[actor.organization_id];
+  const args=[actor.organization_id];
   const count=(sql,a=args)=>db.prepare(sql).get(...a)?.c||0;
   res.json({
     role:actor.role,
     clients:count(`SELECT COUNT(*) c FROM clients${scoped("")}`),
-    activeProjects:count(`SELECT COUNT(*) c FROM projects WHERE status='Active'${actor.role==="Super Admin"?"":" AND organization_id=?"}`),
+    activeProjects:count(`SELECT COUNT(*) c FROM projects WHERE status='Active'${" AND organization_id=?"}`),
     documents:count(`SELECT COUNT(*) c FROM documents${scoped("")}`),
     aiAnalyses:count("SELECT COUNT(*) c FROM messages WHERE role='assistant'"),
     reports:0,
@@ -83,7 +83,7 @@ app.post("/api/users",(req,res)=>{
   const actor=auth(req,res);if(!actor)return;const b=req.body||{};
   if(actor.role!=="Professional User"||!["Finance User","Professional User"].includes(String(b.role)))return res.status(403).json({error:"Only Professional Users can create Finance User or Professional User accounts."});
   const orgId=String(b.organizationId||actor.organization_id);
-  if(actor.role!=="Super Admin"&&orgId!==actor.organization_id)return res.status(403).json({error:"You can only create users in your organization."});
+  if(actor.role!=="Professional User"&&orgId!==actor.organization_id)return res.status(403).json({error:"You can only create users in your organization."});
   const org=db.prepare("SELECT id,name FROM organizations WHERE id=?").get(orgId);
   if(!org)return res.status(400).json({error:"Organization not found."});
   if(!String(b.name||"").trim()||!String(b.email||"").trim()||String(b.password||"").length<6)return res.status(400).json({error:"Name, email and password (6+ characters) are required."});
@@ -104,7 +104,7 @@ app.patch("/api/users/:id",(req,res)=>{
 });
 app.delete("/api/users/:id",(req,res)=>{
   const actor=auth(req,res);if(!actor)return;const target=db.prepare("SELECT * FROM users WHERE id=?").get(req.params.id);if(!target)return res.status(404).json({error:"User not found."});
-  const allowed=(actor.role==="Super Admin"&&target.id!==actor.id)||(actor.role==="Admin"&&target.organization_id===actor.organization_id&&target.role==="Finance User");
+  const allowed=actor.role==="Professional User"&&target.id!==actor.id&&target.organization_id===actor.organization_id&&(target.role==="Finance User"||target.role==="Professional User");
   if(!allowed)return res.status(403).json({error:"You are not authorized to manage this user."});
   db.prepare("UPDATE users SET active=0,updated_at=CURRENT_TIMESTAMP WHERE id=?").run(target.id);audit(actor,"Deactivate user",target.email);res.status(204).end();
 });
@@ -137,7 +137,7 @@ app.post("/api/documents",(req,res)=>{
 });
 app.get("/api/tasks",(req,res)=>{const actor=auth(req,res);if(!actor)return;res.json(orgQuery(actor,"tasks","due ASC").map(parseTask));});
 app.patch("/api/tasks/:id",(req,res)=>{
-  const actor=auth(req,res);if(!actor)return;const target=actor.role==="Super Admin"?db.prepare("SELECT * FROM tasks WHERE id=?").get(req.params.id):db.prepare("SELECT * FROM tasks WHERE id=? AND organization_id=?").get(req.params.id,actor.organization_id);
+  const actor=auth(req,res);if(!actor)return;const target=db.prepare("SELECT * FROM tasks WHERE id=? AND organization_id=?").get(req.params.id,actor.organization_id);
   if(!target)return res.status(404).json({error:"Task not found."});const status=String(req.body?.status||"");
   if(!["To Do","In Progress","Review","Completed"].includes(status))return res.status(400).json({error:"Invalid task status."});
   db.prepare("UPDATE tasks SET status=?,updated_at=CURRENT_TIMESTAMP WHERE id=?").run(status,target.id);audit(actor,"Task status update",target.title,{status});
@@ -147,7 +147,7 @@ app.get("/api/compliance",(req,res)=>{const actor=auth(req,res);if(!actor)return
 app.get("/api/knowledge-base",(req,res)=>{const actor=auth(req,res);if(!actor)return;res.json(orgQuery(actor,"knowledge_items","updated DESC").map(parseKnowledge));});
 app.get("/api/audit-logs",(req,res)=>{
   const actor=auth(req,res);if(!actor)return;
-  const rows=actor.role==="Super Admin"?db.prepare("SELECT * FROM audit_logs ORDER BY timestamp DESC LIMIT 250").all():db.prepare("SELECT * FROM audit_logs WHERE organization_id=? ORDER BY timestamp DESC LIMIT 250").all(actor.organization_id);
+  const rows=db.prepare("SELECT * FROM audit_logs WHERE organization_id=? ORDER BY timestamp DESC LIMIT 250").all(actor.organization_id);
   res.json(rows.map(r=>({...r,metadata:r.metadata_json?JSON.parse(r.metadata_json):{}})));
 });
 
