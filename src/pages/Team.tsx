@@ -31,7 +31,7 @@ export default function Team() {
     <label>Full name<input value={form.name} onChange={e=>setForm({...form,name:e.target.value})} required/></label>
     <label>Email<input type="email" value={form.email} onChange={e=>setForm({...form,email:e.target.value})} required/></label>
     <label>Professional role<select value={form.professionalRole} onChange={e=>setForm({...form,professionalRole:e.target.value as ProfessionalRole})}>{professionalRoles.map(r=><option key={r}>{r}</option>)}</select></label>
-    <label>Account role<select value={form.role} disabled={!workspaceManager} onChange={e=>setForm({...form,role:e.target.value as Role})}>{(workspaceManager?["Admin","Finance User"]:["Finance User"]).map(r=><option key={r}>{r}</option>)}</select></label>
+    <label>Account role<select value={form.role} disabled={!workspaceManager} onChange={e=>setForm({...form,role:e.target.value as Role})}>{(workspaceManager?["Finance User","Professional User"]:["Finance User"]).map(r=><option key={r}>{r}</option>)}</select></label>
     {!edit&&<label>Initial password<input type="password" value={form.password} onChange={e=>setForm({...form,password:e.target.value})} minLength={6} required/></label>}
     <div className="modal-actions"><Button variant="secondary" onClick={()=>setOpen(false)}>Cancel</Button><Button type="submit">{edit?"Save changes":"Create account"}</Button></div>
   </form></Modal></>;

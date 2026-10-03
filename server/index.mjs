@@ -13,7 +13,7 @@ app.use(cors({ origin: FRONTEND_ORIGIN }));
 app.use(express.json({ limit: "20mb" }));
 
 const hash = (value) => crypto.createHash("sha256").update(String(value)).digest("hex");
-const rowToUser = (r) => ({id:r.id,name:r.name,email:r.email,role:r.role,professionalRole:r.professional_role,organizationId:r.organization_id,organizationName:r.organization_name});
+const rowToUser = (r) => ({id:r.id,name:r.name,email:r.email,phone:r.phone||"",role:r.role,professionalRole:r.professional_role,organizationId:r.organization_id,organizationName:r.organization_name});
 const parseProject = (r) => ({id:r.id,name:r.name,clientId:r.client_id,clientName:r.client_name,type:r.type,fy:r.fy,currency:r.currency,status:r.status,priority:r.priority,startDate:r.start_date,endDate:r.end_date,team:JSON.parse(r.team_json||"[]"),tags:JSON.parse(r.tags_json||"[]")});
 const parseClient = (r) => ({id:r.id,name:r.name,company:r.company,industry:r.industry,email:r.email,phone:r.phone,alternatePhone:r.alternate_phone,clientType:r.client_type,legalName:r.legal_name,contactPerson:r.contact_person,pan:r.pan,gstin:r.gstin,cin:r.cin,address:r.address,city:r.city,state:r.state,country:r.country,pinCode:r.pin_code,businessType:r.business_type,professionActivity:r.profession_activity,gstRegistrationType:r.gst_registration_type,taxRegime:r.tax_regime,taxRegistrations:r.tax_registrations,advisor:r.advisor,clientSince:r.client_since,priority:r.priority,communicationPreference:r.communication_preference,notes:r.notes,internalRemarks:r.internal_remarks,fy:r.fy,status:r.status,team:r.team,projects:r.projects,documents:r.documents});
 const parseDocument = (r) => ({id:r.id,name:r.name,type:r.type,size:r.size,status:r.status,uploadedBy:r.uploaded_by,uploadedAt:r.uploaded_at,clientId:r.client_id,projectId:r.project_id,pages:r.pages});
@@ -181,14 +181,48 @@ app.post("/api/assistant/conversations/:id/messages",(req,res)=>{
   const now=new Date().toISOString();db.prepare("INSERT INTO messages(id,conversation_id,role,content,created_at) VALUES (?,?,?,?,?)").run(crypto.randomUUID(),convo.id,"user",message,now);
   const docs=convo.project_id?db.prepare("SELECT name FROM documents WHERE project_id=? AND organization_id=? ORDER BY uploaded_at DESC LIMIT 4").all(convo.project_id,actor.organization_id):[];
   const source=docs[0]?.name||"No project document selected";
-  const answer=[`I’m operating as the ${convo.agent_id} for the selected finance project.`,"",`Question: “${message}”`,"","Answer: The Phase 1 backend persists this conversation and project context in SQLite. Source-grounded numeric extraction still requires the production document parser and LLM integration.","","Calculation: Revenue growth = (Current period − Prior period) / Prior period × 100.","",`Source: ${source}.`,"","Assumptions: Source figures are complete, consistently classified and approved for analysis.","","Limitations: Phase 1 stores structured metadata and chat history locally; binary XLSX/CSV/PDF/DOCX parsing and a production model endpoint remain Phase 2 integrations."].join("
-");
+  const answer=[`I’m operating as the ${convo.agent_id} for the selected finance project.`,"",`Question: “${message}”`,"","Answer: The Phase 1 backend persists this conversation and project context in SQLite. Source-grounded numeric extraction still requires the production document parser and LLM integration.","","Calculation: Revenue growth = (Current period − Prior period) / Prior period × 100.","",`Source: ${source}.`,"","Assumptions: Source figures are complete, consistently classified and approved for analysis.","","Limitations: Phase 1 stores structured metadata and chat history locally; binary XLSX/CSV/PDF/DOCX parsing and a production model endpoint remain Phase 2 integrations."].join("\n");
   const assistantId=crypto.randomUUID();db.prepare("INSERT INTO messages(id,conversation_id,role,content,created_at,limitations) VALUES (?,?,?,?,?,?)").run(assistantId,convo.id,"assistant",answer,new Date().toISOString(),"Production LLM and binary document parsing are Phase 2 integrations.");
   db.prepare("UPDATE conversations SET updated_at=CURRENT_TIMESTAMP WHERE id=?").run(convo.id);db.prepare("UPDATE organizations SET ai_requests=ai_requests+1 WHERE id=?").run(actor.organization_id);
   audit(actor,"AI request",`Conversation ${convo.id}`,{agent:convo.agent_id,projectId:convo.project_id});
   res.json({id:assistantId,role:"assistant",content:answer,createdAt:new Date().toISOString(),limitations:"Production LLM and binary document parsing are Phase 2 integrations."});
 });
 
+app.get("/api/account",(req,res)=>{
+  const actor=auth(req,res);if(!actor)return;
+  const profile=actor.role==="Individual"?db.prepare("SELECT phone,address,pan,dob,residential_status FROM individual_profiles WHERE user_id=?").get(actor.id):null;
+  res.json({...rowToUser(actor),accountStatus:actor.active?"Active":"Inactive",createdAt:actor.created_at,profile:profile?{phone:profile.phone||actor.phone||"",address:profile.address||"",pan:profile.pan||"",dob:profile.dob||"",residentialStatus:profile.residential_status||""}:undefined});
+});
+app.patch("/api/account",(req,res)=>{
+  const actor=auth(req,res);if(!actor)return;
+  const b=req.body||{};
+  const name=String(b.name??actor.name).trim();
+  const email=String(b.email??actor.email).trim().toLowerCase();
+  const phone=String(b.phone??actor.phone??"").trim();
+  if(!name)return res.status(400).json({error:"Full name is required."});
+  if(!email||!/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(email))return res.status(400).json({error:"Enter a valid email address."});
+  if(phone&&!/^\\+?[0-9 ()-]{7,20}$/.test(phone))return res.status(400).json({error:"Enter a valid mobile number."});
+  if(db.prepare("SELECT 1 FROM users WHERE lower(email)=? AND id<>?").get(email,actor.id))return res.status(409).json({error:"Another account already uses this email."});
+  const tx=db.transaction(()=>{
+    db.prepare("UPDATE users SET name=?,email=?,phone=?,updated_at=CURRENT_TIMESTAMP WHERE id=?").run(name,email,phone,actor.id);
+    if(actor.role==="Individual"){
+      db.prepare("UPDATE individual_profiles SET phone=? WHERE user_id=?").run(phone,actor.id);
+    }
+  });
+  tx();
+  const updated=db.prepare("SELECT * FROM users WHERE id=?").get(actor.id);audit(updated,"Update account","Account", {fields:["name","email","phone"]});
+  res.json(rowToUser(updated));
+});
+app.post("/api/account/change-password",(req,res)=>{
+  const actor=auth(req,res);if(!actor)return;
+  const currentPassword=String(req.body?.currentPassword||""),newPassword=String(req.body?.newPassword||"");
+  if(!currentPassword||!newPassword)return res.status(400).json({error:"Current and new password are required."});
+  if(newPassword.length<8)return res.status(400).json({error:"New password must be at least 8 characters."});
+  if(hash(currentPassword)!==actor.password_hash)return res.status(401).json({error:"Current password is incorrect."});
+  if(hash(newPassword)===actor.password_hash)return res.status(400).json({error:"New password must be different from the current password."});
+  db.prepare("UPDATE users SET password_hash=?,updated_at=CURRENT_TIMESTAMP WHERE id=?").run(hash(newPassword),actor.id);
+  audit(actor,"Change password","Account");res.json({ok:true});
+});
 app.get("/api/settings",(req,res)=>{const actor=auth(req,res);if(!actor)return;const row=db.prepare("SELECT data_json FROM settings WHERE organization_id=?").get(actor.organization_id);res.json(row?JSON.parse(row.data_json):{});});
 app.put("/api/settings",(req,res)=>{const actor=auth(req,res);if(!actor)return;const data=req.body||{};db.prepare("INSERT INTO settings(organization_id,data_json,updated_at) VALUES(?,?,CURRENT_TIMESTAMP) ON CONFLICT(organization_id) DO UPDATE SET data_json=excluded.data_json,updated_at=CURRENT_TIMESTAMP").run(actor.organization_id,JSON.stringify(data));audit(actor,"Update settings","Organization settings");res.json(data);});
 
