@@ -4,34 +4,21 @@ import { demoUsers } from "../data/mockData";
 import * as api from "../services/mockApi";
 interface AuthContextValue{user:User|null;loading:boolean;login:(email:string,password:string,role:Role)=>Promise<void>;signup:(name:string,email:string,password:string,professionalRole:User["professionalRole"],accountType:Role)=>Promise<void>;logout:()=>void;can:(permission:string)=>boolean;refreshUser:(next:User)=>void;}
 const AuthContext=createContext<AuthContextValue|null>(null);
-<<<<<<< HEAD
-const permissions:Record<Role,Set<string>>={"Super Admin":new Set(["platform","orgs","team","clients","projects","documents","ai","analysis","reports","tasks","compliance","knowledge","analytics","billing","audit","settings"]),"Admin":new Set(["team","clients","projects","documents","ai","analysis","reports","tasks","compliance","knowledge","analytics","audit","settings"]),"Finance User":new Set(["clients","projects","documents","ai","analysis","reports","tasks","compliance","knowledge","analytics","settings"]),"Individual":new Set(["individual","assets","documents","itr","settings"])};
-const individualRequest = async <T,>(
-  path: string,
-  body?: unknown
-): Promise<T> => {
-  const response = await fetch(path, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    ...(body !== undefined ? { body: JSON.stringify(body) } : {}),
-  });
-
-  if (!response.ok) {
-    throw new Error(`Request failed: ${response.status}`);
-  }
-
-  return response.json() as Promise<T>;
-};
-=======
 const permissions:Record<Role,Set<string>>={
  "Professional User":new Set(["clients","projects","documents","ai","analysis","reports","tasks","compliance","knowledge","analytics","audit","settings"]),
  "Finance User":new Set(["projects","documents","ai","analysis","reports","tasks","analytics","settings"]),
- "Individual":new Set(["individual","assets","documents","itr","settings"])
+ "Individual":new Set(["individual","assets","documents","ai","itr","settings"])
 };
-const individualRequest=async<T>(path:string,body?:unknown):Promise<T>=>{const r=await fetch(path,{method:"POST",headers:{"Content-Type":"application/json"},body:body?JSON.stringify(body):undefined});const data=await r.json().catch(()=>({}));if(!r.ok)throw new Error(data.error||("Request failed ("+r.status+")"));return data;};
->>>>>>> fcd4c2bbf5407b2a1ab04ca2ef0e12afcd5faec4
+const individualRequest=async<T>(path:string,body?:unknown):Promise<T>=>{
+ const response=await fetch(path,{
+  method:"POST",
+  headers:{"Content-Type":"application/json"},
+  ...(body!==undefined?{body:JSON.stringify(body)}:{})
+ });
+ const data=await response.json().catch(()=>({}));
+ if(!response.ok)throw new Error(data.error||("Request failed ("+response.status+")"));
+ return data as T;
+};
 export function AuthProvider({children}:{children:ReactNode}){
  const [user,setUser]=useState<User|null>(null);const [loading,setLoading]=useState(true);
  useEffect(()=>{try{const saved=localStorage.getItem("finotech_saas_user");if(saved)setUser(JSON.parse(saved));}catch{localStorage.removeItem("finotech_saas_user");}setLoading(false);},[]);
