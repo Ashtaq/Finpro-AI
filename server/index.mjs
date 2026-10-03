@@ -15,7 +15,7 @@ app.use(express.json({ limit: "20mb" }));
 const hash = (value) => crypto.createHash("sha256").update(String(value)).digest("hex");
 const rowToUser = (r) => ({id:r.id,name:r.name,email:r.email,role:r.role,professionalRole:r.professional_role,organizationId:r.organization_id,organizationName:r.organization_name});
 const parseProject = (r) => ({id:r.id,name:r.name,clientId:r.client_id,clientName:r.client_name,type:r.type,fy:r.fy,currency:r.currency,status:r.status,priority:r.priority,startDate:r.start_date,endDate:r.end_date,team:JSON.parse(r.team_json||"[]"),tags:JSON.parse(r.tags_json||"[]")});
-const parseDocument = (r) => ({id:r.id,name:r.name,type:r.type,size:r.size,status:r.status,uploadedBy:r.uploaded_by,uploadedAt:r.uploaded_at,projectId:r.project_id,pages:r.pages});
+const parseDocument = (r) => ({id:r.id,name:r.name,type:r.type,size:r.size,status:r.status,uploadedBy:r.uploaded_by,uploadedAt:r.uploaded_at,clientId:r.client_id,projectId:r.project_id,pages:r.pages});
 const parseTask = (r) => ({id:r.id,title:r.title,client:r.client,project:r.project,assignee:r.assignee,priority:r.priority,due:r.due,status:r.status});
 const parseCompliance = (r) => ({id:r.id,title:r.title,client:r.client,dueDate:r.due_date,category:r.category,status:r.status});
 const parseKnowledge = (r) => ({id:r.id,title:r.title,kind:r.kind,owner:r.owner,updated:r.updated});
@@ -51,7 +51,7 @@ app.post("/api/auth/signup",(req,res)=>{
   if(db.prepare("SELECT 1 FROM users WHERE lower(email)=?").get(email.toLowerCase()))return res.status(409).json({error:"An account with this email already exists."});
   const organizationId=crypto.randomUUID(), organizationName=`${name}'s Finance Workspace`, userId=crypto.randomUUID();
   db.prepare("INSERT INTO organizations(id,name,plan) VALUES (?,?,?)").run(organizationId,organizationName,"Professional");
-  db.prepare("INSERT INTO users(id,name,email,password_hash,role,professional_role,organization_id,organization_name) VALUES (?,?,?,?,?,?,?,?)").run(userId,name,email,hash(password),"Finance User",professionalRole,organizationId,organizationName);
+  db.prepare("INSERT INTO users(id,name,email,password_hash,role,professional_role,organization_id,organization_name) VALUES (?,?,?,?,?,?,?,?)").run(userId,name,email,hash(password),role,professionalRole,organizationId,organizationName);
   const actor=db.prepare("SELECT * FROM users WHERE id=?").get(userId); audit(actor,"Signup","Authentication");
   res.status(201).json({user:rowToUser(actor)});
 });
@@ -76,12 +76,12 @@ app.get("/api/dashboard",(req,res)=>{
 
 app.get("/api/users",(req,res)=>{
   const actor=auth(req,res);if(!actor)return;
-  const rows=actor.role==="Super Admin"?db.prepare("SELECT * FROM users WHERE id<>? ORDER BY created_at DESC").all(actor.id):db.prepare("SELECT * FROM users WHERE organization_id=? AND role='Finance User' AND active=1 ORDER BY created_at DESC").all(actor.organization_id);
+  if(actor.role!=="Professional User")return res.status(403).json({error:"Only Professional Users can manage workspace users."});\n  const rows=db.prepare("SELECT * FROM users WHERE organization_id=? AND id<>? AND active=1 ORDER BY created_at DESC").all(actor.organization_id,actor.id);
   res.json(rows.map(rowToUser));
 });
 app.post("/api/users",(req,res)=>{
   const actor=auth(req,res);if(!actor)return;const b=req.body||{};
-  if(actor.role!=="Super Admin"&&b.role!=="Finance User")return res.status(403).json({error:"Admins can create Finance User accounts only."});
+  if(actor.role!=="Professional User"||!["Finance User","Professional User"].includes(String(b.role)))return res.status(403).json({error:"Only Professional Users can create Finance User or Professional User accounts."});
   const orgId=String(b.organizationId||actor.organization_id);
   if(actor.role!=="Super Admin"&&orgId!==actor.organization_id)return res.status(403).json({error:"You can only create users in your organization."});
   const org=db.prepare("SELECT id,name FROM organizations WHERE id=?").get(orgId);
@@ -95,9 +95,9 @@ app.post("/api/users",(req,res)=>{
 });
 app.patch("/api/users/:id",(req,res)=>{
   const actor=auth(req,res);if(!actor)return;const target=db.prepare("SELECT * FROM users WHERE id=?").get(req.params.id);if(!target)return res.status(404).json({error:"User not found."});
-  const allowed=(actor.role==="Super Admin"&&target.id!==actor.id)||(actor.role==="Admin"&&target.organization_id===actor.organization_id&&target.role==="Finance User");
+  const allowed=actor.role==="Professional User"&&target.id!==actor.id&&target.organization_id===actor.organization_id&&(target.role==="Finance User"||target.role==="Professional User");
   if(!allowed)return res.status(403).json({error:"You are not authorized to manage this user."});
-  const b=req.body||{};if(actor.role==="Admin"&&b.role&&b.role!=="Finance User")return res.status(403).json({error:"Admins cannot change a Finance User into another role."});
+  const b=req.body||{};if(actor.role!=="Professional User"&&b.role)return res.status(403).json({error:"Only Professional Users can change workspace roles."});\n  if(b.role&&!["Finance User","Professional User"].includes(String(b.role)))return res.status(400).json({error:"Invalid workspace role."});
   if(b.email&&db.prepare("SELECT 1 FROM users WHERE lower(email)=? AND id<>?").get(String(b.email).trim().toLowerCase(),target.id))return res.status(409).json({error:"Another account already uses this email."});
   db.prepare("UPDATE users SET name=COALESCE(?,name),email=COALESCE(?,email),professional_role=COALESCE(?,professional_role),role=COALESCE(?,role),updated_at=CURRENT_TIMESTAMP WHERE id=?").run(b.name??null,b.email??null,b.professionalRole??null,b.role??null,target.id);
   const updated=db.prepare("SELECT * FROM users WHERE id=?").get(target.id);audit(actor,"Update user",updated.email);res.json(rowToUser(updated));
@@ -116,15 +116,15 @@ app.post("/api/users/:id/reset-password",(req,res)=>{
   db.prepare("UPDATE users SET password_hash=?,updated_at=CURRENT_TIMESTAMP WHERE id=?").run(hash(password),target.id);audit(actor,"Reset password",target.email);res.status(204).end();
 });
 
-app.get("/api/clients",(req,res)=>{const actor=auth(req,res);if(!actor)return;res.json(orgQuery(actor,"clients"));});
+app.get("/api/clients",(req,res)=>{const actor=auth(req,res);if(!actor)return;if(actor.role!=="Professional User")return res.status(403).json({error:"Client management is available to Professional Users only."});res.json(orgQuery(actor,"clients"));});
 app.post("/api/clients",(req,res)=>{
-  const actor=auth(req,res);if(!actor)return;const b=req.body||{};if(!String(b.company||"").trim())return res.status(400).json({error:"Company name is required."});
+  const actor=auth(req,res);if(!actor)return;if(actor.role!=="Professional User")return res.status(403).json({error:"Client management is available to Professional Users only."});const b=req.body||{};if(!String(b.company||"").trim())return res.status(400).json({error:"Company name is required."});
   const row={id:crypto.randomUUID(),name:String(b.name||"New contact").trim(),company:String(b.company).trim(),industry:String(b.industry||"Technology"),email:String(b.email||""),phone:String(b.phone||""),fy:String(b.fy||"FY 2025-26"),status:String(b.status||"Onboarding"),team:String(b.team||"New Coverage"),projects:0,documents:0};
   db.prepare("INSERT INTO clients(id,name,company,industry,email,phone,fy,status,team,projects,documents,organization_id) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)").run(row.id,row.name,row.company,row.industry,row.email,row.phone,row.fy,row.status,row.team,0,0,actor.organization_id);
   audit(actor,"Create client",row.company);res.status(201).json(row);
 });
 
-app.get("/api/projects",(req,res)=>{const actor=auth(req,res);if(!actor)return;res.json(orgQuery(actor,"projects").map(parseProject));});
+app.get("/api/projects",(req,res)=>{const actor=auth(req,res);if(!actor)return;if(actor.role==="Individual")return res.status(403).json({error:"Project workspace is not available to Individual users."});res.json(orgQuery(actor,"projects").map(parseProject));});
 app.get("/api/documents",(req,res)=>{const actor=auth(req,res);if(!actor)return;res.json(orgQuery(actor,"documents").map(parseDocument));});
 app.post("/api/documents",(req,res)=>{
   const actor=auth(req,res);if(!actor)return;const b=req.body||{};
