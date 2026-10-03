@@ -122,11 +122,11 @@ export async function analyzeFinancials():Promise<AnalysisResult>{return {revenu
 
 export type AssistantRequest={message:string;agentId:string;projectId?:string;fileIds?:string[];history?:ChatMessage[]};
 
-async function backendAssistant(request:AssistantRequest,actor:User):Promise<AsyncGenerator<string>> {
+async function backendAssistant(assistantRequest:AssistantRequest,actor:User):Promise<AsyncGenerator<string>> {
   const conversationKey="finotech_ai_conversation";
   let conversationId=sessionStorage.getItem(conversationKey);
-  if(!conversationId){const c=await request<{id:string}>("/api/assistant/conversations",{method:"POST",body:JSON.stringify({projectId:request.projectId||null,agentId:request.agentId,title:request.message.slice(0,80)})},actor.id);conversationId=c.id;sessionStorage.setItem(conversationKey,conversationId);}
-  const result=await request<{content:string}>(`/api/assistant/conversations/${conversationId}/messages`,{method:"POST",body:JSON.stringify({message:request.message})},actor.id);
+  if(!conversationId){const c=await request<{id:string}>("/api/assistant/conversations",{method:"POST",body:JSON.stringify({projectId:assistantRequest.projectId||null,agentId:assistantRequest.agentId,title:assistantRequest.message.slice(0,80)})},actor.id);conversationId=c.id;sessionStorage.setItem(conversationKey,conversationId);}
+  const result=await request<{content:string}>(`/api/assistant/conversations/${conversationId}/messages`,{method:"POST",body:JSON.stringify({message:assistantRequest.message})},actor.id);
   async function* generator(){for(const chunk of result.content.split(/(\s+)/)){await delay(8);yield chunk;}}
   return generator();
 }
@@ -159,7 +159,7 @@ export async function streamAssistantReply(requestOrMessage:string|AssistantRequ
 export async function createDocument(fileName:string,projectId:string):Promise<DocumentRecord>{
   const saved=localStorage.getItem("finotech_saas_user");const actor=saved?JSON.parse(saved) as User:null;
   if(actor&&await hasBackend())return request<DocumentRecord>("/api/documents",{method:"POST",body:JSON.stringify({name:fileName,projectId,size:"Uploaded"})},actor.id);
-  await delay(150);return {id:`d-${Date.now()}`,name:fileName,type:fileName.split(".").pop()?.toUpperCase()||"FILE",size:"Uploaded",status:"Completed",uploadedBy:"Current User",uploadedAt:new Date().toISOString().slice(0,10),projectId,pages:1};
+  await delay(150);return {id:`d-${Date.now()}`,name:fileName,type:fileName.split(".").pop()?.toUpperCase()||"FILE",size:"Uploaded",status:"Completed",uploadedBy:"Current User",uploadedAt:new Date().toISOString().slice(0,10),clientId:"",projectId,pages:1};
 }
 
 export async function getTasks():Promise<Task[]> {
