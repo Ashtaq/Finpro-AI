@@ -1,4 +1,4 @@
-export type Role = "Super Admin" | "Admin" | "Finance User" | "Individual";
+export type Role = "Individual" | "Finance User" | "Professional User";
 export type ProfessionalRole =
   | "CA" | "CS" | "CFA" | "Financial Analyst" | "Accountant"
   | "Auditor" | "Finance Manager" | "Investment Analyst" | "Consultant" | "Other";
@@ -19,7 +19,7 @@ export interface User {
 export interface Organization { id:string; name:string; plan:"Free"|"Professional"|"Business"|"Enterprise"; users:number; activeProjects:number; documentsProcessed:number; aiRequests:number; }
 export interface Client { id:string; name:string; company:string; industry:string; email:string; phone:string; fy:string; status:Status; team:string; projects:number; documents:number; }
 export interface Project { id:string; name:string; clientId:string; clientName:string; type:string; fy:string; currency:string; status:ProjectStatus; priority:"High"|"Medium"|"Low"; startDate:string; endDate:string; team:string[]; tags:string[]; }
-export interface DocumentRecord { id:string; name:string; type:string; size:string; status:"Uploading"|"Processing"|"Extracting"|"Analyzing"|"Completed"|"Failed"; uploadedBy:string; uploadedAt:string; projectId:string; pages?:number; }
+export interface DocumentRecord { id:string; name:string; type:string; size:string; status:"Uploading"|"Processing"|"Extracting"|"Analyzing"|"Completed"|"Failed"; uploadedBy:string; uploadedAt:string; clientId:string; projectId:string; pages?:number; }
 export interface ChatMessage { id:string; role:"user"|"assistant"; content:string; createdAt:string; evidence?:Evidence[]; calculation?:string; assumptions?:string[]; limitations?:string; }
 export interface Evidence { source:string; page?:number; excerpt:string; }
 export interface Agent { id:string; name:string; description:string; category:string; capabilities:string[]; tone:string; }
