@@ -73,7 +73,8 @@ app.get("/api/dashboard",(req,res)=>{
 
 app.get("/api/users",(req,res)=>{
   const actor=auth(req,res);if(!actor)return;
-  if(actor.role!=="Professional User")return res.status(403).json({error:"Only Professional Users can manage workspace users."});\n  const rows=db.prepare("SELECT * FROM users WHERE organization_id=? AND id<>? AND active=1 ORDER BY created_at DESC").all(actor.organization_id,actor.id);
+  if(actor.role!=="Professional User")return res.status(403).json({error:"Only Professional Users can manage workspace users."});
+  const rows=db.prepare("SELECT * FROM users WHERE organization_id=? AND id<>? AND active=1 ORDER BY created_at DESC").all(actor.organization_id,actor.id);
   res.json(rows.map(rowToUser));
 });
 app.post("/api/users",(req,res)=>{
@@ -94,7 +95,8 @@ app.patch("/api/users/:id",(req,res)=>{
   const actor=auth(req,res);if(!actor)return;const target=db.prepare("SELECT * FROM users WHERE id=?").get(req.params.id);if(!target)return res.status(404).json({error:"User not found."});
   const allowed=actor.role==="Professional User"&&target.id!==actor.id&&target.organization_id===actor.organization_id&&(target.role==="Finance User"||target.role==="Professional User");
   if(!allowed)return res.status(403).json({error:"You are not authorized to manage this user."});
-  const b=req.body||{};if(actor.role!=="Professional User"&&b.role)return res.status(403).json({error:"Only Professional Users can change workspace roles."});\n  if(b.role&&!["Finance User","Professional User"].includes(String(b.role)))return res.status(400).json({error:"Invalid workspace role."});
+  const b=req.body||{};if(actor.role!=="Professional User"&&b.role)return res.status(403).json({error:"Only Professional Users can change workspace roles."});
+  if(b.role&&!["Finance User","Professional User"].includes(String(b.role)))return res.status(400).json({error:"Invalid workspace role."});
   if(b.email&&db.prepare("SELECT 1 FROM users WHERE lower(email)=? AND id<>?").get(String(b.email).trim().toLowerCase(),target.id))return res.status(409).json({error:"Another account already uses this email."});
   db.prepare("UPDATE users SET name=COALESCE(?,name),email=COALESCE(?,email),professional_role=COALESCE(?,professional_role),role=COALESCE(?,role),updated_at=CURRENT_TIMESTAMP WHERE id=?").run(b.name??null,b.email??null,b.professionalRole??null,b.role??null,target.id);
   const updated=db.prepare("SELECT * FROM users WHERE id=?").get(target.id);audit(actor,"Update user",updated.email);res.json(rowToUser(updated));
@@ -128,7 +130,8 @@ app.post("/api/documents",(req,res)=>{
   const project=db.prepare("SELECT * FROM projects WHERE id=? AND organization_id=?").get(b.projectId,actor.organization_id);
   if(!project)return res.status(404).json({error:"Project not found."});
   if(!String(b.name||"").trim())return res.status(400).json({error:"File name is required."});
-  const id=crypto.randomUUID(), uploadedAt=new Date().toISOString().slice(0,10);\n  db.prepare("INSERT INTO documents(id,name,type,size,status,uploaded_by,uploaded_at,client_id,project_id,organization_id,pages,storage_key,mime_type) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)").run(id,b.name,String(b.name).split(".").pop()?.toUpperCase()||"FILE",String(b.size||"Uploaded"),"Completed",actor.name,uploadedAt,project.client_id,b.projectId,actor.organization_id,Number(b.pages||1),b.storageKey||null,b.mimeType||null);
+  const id=crypto.randomUUID(), uploadedAt=new Date().toISOString().slice(0,10);
+  db.prepare("INSERT INTO documents(id,name,type,size,status,uploaded_by,uploaded_at,client_id,project_id,organization_id,pages,storage_key,mime_type) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)").run(id,b.name,String(b.name).split(".").pop()?.toUpperCase()||"FILE",String(b.size||"Uploaded"),"Completed",actor.name,uploadedAt,project.client_id,b.projectId,actor.organization_id,Number(b.pages||1),b.storageKey||null,b.mimeType||null);
   const out=parseDocument(db.prepare("SELECT * FROM documents WHERE id=?").get(id));audit(actor,"File upload",out.name,{projectId:b.projectId});res.status(201).json(out);
 });
 app.get("/api/tasks",(req,res)=>{const actor=auth(req,res);if(!actor)return;res.json(orgQuery(actor,"tasks","due ASC").map(parseTask));});
@@ -166,7 +169,8 @@ app.post("/api/assistant/conversations/:id/messages",(req,res)=>{
   const now=new Date().toISOString();db.prepare("INSERT INTO messages(id,conversation_id,role,content,created_at) VALUES (?,?,?,?,?)").run(crypto.randomUUID(),convo.id,"user",message,now);
   const docs=convo.project_id?db.prepare("SELECT name FROM documents WHERE project_id=? AND organization_id=? ORDER BY uploaded_at DESC LIMIT 4").all(convo.project_id,actor.organization_id):[];
   const source=docs[0]?.name||"No project document selected";
-  const answer=[`I’m operating as the ${convo.agent_id} for the selected finance project.`,"",`Question: “${message}”`,"","Answer: The Phase 1 backend persists this conversation and project context in SQLite. Source-grounded numeric extraction still requires the production document parser and LLM integration.","","Calculation: Revenue growth = (Current period − Prior period) / Prior period × 100.","",`Source: ${source}.`,"","Assumptions: Source figures are complete, consistently classified and approved for analysis.","","Limitations: Phase 1 stores structured metadata and chat history locally; binary XLSX/CSV/PDF/DOCX parsing and a production model endpoint remain Phase 2 integrations."].join("\n");
+  const answer=[`I’m operating as the ${convo.agent_id} for the selected finance project.`,"",`Question: “${message}”`,"","Answer: The Phase 1 backend persists this conversation and project context in SQLite. Source-grounded numeric extraction still requires the production document parser and LLM integration.","","Calculation: Revenue growth = (Current period − Prior period) / Prior period × 100.","",`Source: ${source}.`,"","Assumptions: Source figures are complete, consistently classified and approved for analysis.","","Limitations: Phase 1 stores structured metadata and chat history locally; binary XLSX/CSV/PDF/DOCX parsing and a production model endpoint remain Phase 2 integrations."].join("
+");
   const assistantId=crypto.randomUUID();db.prepare("INSERT INTO messages(id,conversation_id,role,content,created_at,limitations) VALUES (?,?,?,?,?,?)").run(assistantId,convo.id,"assistant",answer,new Date().toISOString(),"Production LLM and binary document parsing are Phase 2 integrations.");
   db.prepare("UPDATE conversations SET updated_at=CURRENT_TIMESTAMP WHERE id=?").run(convo.id);db.prepare("UPDATE organizations SET ai_requests=ai_requests+1 WHERE id=?").run(actor.organization_id);
   audit(actor,"AI request",`Conversation ${convo.id}`,{agent:convo.agent_id,projectId:convo.project_id});
