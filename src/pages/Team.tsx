@@ -15,14 +15,14 @@ export default function Team() {
   const load=async()=>{if(user)setRows(await listManagedUsers(user));};
   useEffect(()=>{void load();},[user]);
 
-  const openCreate=()=>{setEdit(null);setError("");setForm({name:"",email:"",professionalRole:"CA",role:user?.role==="Super Admin"?"Admin":"Finance User",password:"welcome123"});setOpen(true);};
+  const openCreate=()=>{setEdit(null);setError("");setForm({name:"",email:"",professionalRole:"CA",role:user?.role==="Professional User"?"Professional User":"Finance User",password:"welcome123"});setOpen(true);};
   const openEdit=(u:User)=>{setEdit(u);setError("");setForm({name:u.name,email:u.email,professionalRole:u.professionalRole,role:u.role,password:"welcome123"});setOpen(true);};
 
   const submit=async(e:FormEvent)=>{e.preventDefault();setError("");try{if(!user)return;if(edit)await updateManagedUser(user,edit.id,{name:form.name,email:form.email,professionalRole:form.professionalRole,role:form.role});else await createManagedUser(user,form);setOpen(false);await load();}catch(e){setError(e instanceof Error?e.message:"Unable to save user.");}};
   const remove=async(u:User)=>{if(!user||!window.confirm(`Delete ${u.name}'s account?`))return;try{await deleteManagedUser(user,u.id);await load();}catch(e){setError(e instanceof Error?e.message:"Unable to delete user.");}};
   const reset=async(u:User)=>{if(!user)return;const p=window.prompt(`New password for ${u.name}:`,"welcome123");if(!p)return;try{await resetManagedUserPassword(user,u.id,p);window.alert("Password reset successfully.");}catch(e){setError(e instanceof Error?e.message:"Unable to reset password.");}};
 
-  const superAdmin=user?.role==="Super Admin";
+  const superAdmin=user?.role==="Professional User";
   return <><PageHeader eyebrow={superAdmin?"PLATFORM ADMINISTRATION":"ORGANIZATION ADMINISTRATION"} title="User Management" description={superAdmin?"Manage Admins and Finance Users across all organizations.":"Manage Finance Users in your organization."} action={<Button onClick={openCreate}><Plus size={15}/> Create user</Button>}/>
   {error&&<div className="error-box">{error}</div>}
   <div className="notice"><div><strong>Access hierarchy</strong><span>{superAdmin?"Super Admin can create, edit, reset and delete Admin and Finance User accounts.":"Admin can create, edit, reset and delete Finance User accounts only."}</span></div><Badge tone="info">RBAC enforced</Badge></div>
