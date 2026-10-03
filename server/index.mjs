@@ -15,7 +15,7 @@ app.use(express.json({ limit: "20mb" }));
 const hash = (value) => crypto.createHash("sha256").update(String(value)).digest("hex");
 const rowToUser = (r) => ({id:r.id,name:r.name,email:r.email,role:r.role,professionalRole:r.professional_role,organizationId:r.organization_id,organizationName:r.organization_name});
 const parseProject = (r) => ({id:r.id,name:r.name,clientId:r.client_id,clientName:r.client_name,type:r.type,fy:r.fy,currency:r.currency,status:r.status,priority:r.priority,startDate:r.start_date,endDate:r.end_date,team:JSON.parse(r.team_json||"[]"),tags:JSON.parse(r.tags_json||"[]")});
-const parseDocument = (r) => ({id:r.id,name:r.name,type:r.type,size:r.size,status:r.status,uploadedBy:r.uploaded_by,uploadedAt:r.uploaded_at,projectId:r.project_id,pages:r.pages});
+const parseDocument = (r) => ({id:r.id,name:r.name,type:r.type,size:r.size,status:r.status,uploadedBy:r.uploaded_by,uploadedAt:r.uploaded_at,clientId:r.client_id,projectId:r.project_id,pages:r.pages});
 const parseTask = (r) => ({id:r.id,title:r.title,client:r.client,project:r.project,assignee:r.assignee,priority:r.priority,due:r.due,status:r.status});
 const parseCompliance = (r) => ({id:r.id,title:r.title,client:r.client,dueDate:r.due_date,category:r.category,status:r.status});
 const parseKnowledge = (r) => ({id:r.id,title:r.title,kind:r.kind,owner:r.owner,updated:r.updated});
@@ -31,10 +31,7 @@ function auth(req,res) {
   if(!actor){res.status(401).json({error:"Authentication required"});return null;}
   return actor;
 }
-function orgQuery(actor, table, order="created_at DESC") {
-  return actor.role==="Super Admin" ? db.prepare(`SELECT * FROM ${table} ORDER BY ${order}`).all()
-    : db.prepare(`SELECT * FROM ${table} WHERE organization_id=? ORDER BY ${order}`).all(actor.organization_id);
-}
+function orgQuery(actor, table, order="created_at DESC") { return db.prepare(`SELECT * FROM ${table} WHERE organization_id=? ORDER BY ${order}`).all(actor.organization_id); }
 
 app.get("/api/health",(_req,res)=>res.json({ok:true,service:"finotech-local-api",database:"sqlite",storage:"local-disk",time:new Date().toISOString()}));
 
@@ -51,39 +48,40 @@ app.post("/api/auth/signup",(req,res)=>{
   if(db.prepare("SELECT 1 FROM users WHERE lower(email)=?").get(email.toLowerCase()))return res.status(409).json({error:"An account with this email already exists."});
   const organizationId=crypto.randomUUID(), organizationName=`${name}'s Finance Workspace`, userId=crypto.randomUUID();
   db.prepare("INSERT INTO organizations(id,name,plan) VALUES (?,?,?)").run(organizationId,organizationName,"Professional");
-  db.prepare("INSERT INTO users(id,name,email,password_hash,role,professional_role,organization_id,organization_name) VALUES (?,?,?,?,?,?,?,?)").run(userId,name,email,hash(password),"Finance User",professionalRole,organizationId,organizationName);
+  db.prepare("INSERT INTO users(id,name,email,password_hash,role,professional_role,organization_id,organization_name) VALUES (?,?,?,?,?,?,?,?)").run(userId,name,email,hash(password),role,professionalRole,organizationId,organizationName);
   const actor=db.prepare("SELECT * FROM users WHERE id=?").get(userId); audit(actor,"Signup","Authentication");
   res.status(201).json({user:rowToUser(actor)});
 });
 
 app.get("/api/dashboard",(req,res)=>{
   const actor=auth(req,res);if(!actor)return;
-  const scoped=(base)=>actor.role==="Super Admin"?base:`${base} WHERE organization_id=?`;
-  const args=actor.role==="Super Admin"?[]:[actor.organization_id];
+  const scoped=(base)=>`${base} WHERE organization_id=?`;
+  const args=[actor.organization_id];
   const count=(sql,a=args)=>db.prepare(sql).get(...a)?.c||0;
   res.json({
     role:actor.role,
     clients:count(`SELECT COUNT(*) c FROM clients${scoped("")}`),
-    activeProjects:count(`SELECT COUNT(*) c FROM projects WHERE status='Active'${actor.role==="Super Admin"?"":" AND organization_id=?"}`),
+    activeProjects:count(`SELECT COUNT(*) c FROM projects WHERE status='Active'${" AND organization_id=?"}`),
     documents:count(`SELECT COUNT(*) c FROM documents${scoped("")}`),
     aiAnalyses:count("SELECT COUNT(*) c FROM messages WHERE role='assistant'"),
     reports:0,
-    pendingTasks:count(`SELECT COUNT(*) c FROM tasks WHERE status!='Completed'${actor.role==="Super Admin"?"":" AND organization_id=?"}`),
-    upcomingDeadlines:count(`SELECT COUNT(*) c FROM compliance_items WHERE status!='Overdue'${actor.role==="Super Admin"?"":" AND organization_id=?"}`),
+    pendingTasks:count(`SELECT COUNT(*) c FROM tasks WHERE status!='Completed'${" AND organization_id=?"}`),
+    upcomingDeadlines:count(`SELECT COUNT(*) c FROM compliance_items WHERE status!='Overdue'${" AND organization_id=?"}`),
     aiUsage:count(`SELECT COALESCE(SUM(ai_requests),0) c FROM organizations${scoped("")}`)
   });
 });
 
 app.get("/api/users",(req,res)=>{
   const actor=auth(req,res);if(!actor)return;
-  const rows=actor.role==="Super Admin"?db.prepare("SELECT * FROM users WHERE id<>? ORDER BY created_at DESC").all(actor.id):db.prepare("SELECT * FROM users WHERE organization_id=? AND role='Finance User' AND active=1 ORDER BY created_at DESC").all(actor.organization_id);
+  if(actor.role!=="Professional User")return res.status(403).json({error:"Only Professional Users can manage workspace users."});
+  const rows=db.prepare("SELECT * FROM users WHERE organization_id=? AND id<>? AND active=1 ORDER BY created_at DESC").all(actor.organization_id,actor.id);
   res.json(rows.map(rowToUser));
 });
 app.post("/api/users",(req,res)=>{
   const actor=auth(req,res);if(!actor)return;const b=req.body||{};
-  if(actor.role!=="Super Admin"&&b.role!=="Finance User")return res.status(403).json({error:"Admins can create Finance User accounts only."});
+  if(actor.role!=="Professional User"||!["Finance User","Professional User"].includes(String(b.role)))return res.status(403).json({error:"Only Professional Users can create Finance User or Professional User accounts."});
   const orgId=String(b.organizationId||actor.organization_id);
-  if(actor.role!=="Super Admin"&&orgId!==actor.organization_id)return res.status(403).json({error:"You can only create users in your organization."});
+  if(actor.role!=="Professional User"&&orgId!==actor.organization_id)return res.status(403).json({error:"You can only create users in your organization."});
   const org=db.prepare("SELECT id,name FROM organizations WHERE id=?").get(orgId);
   if(!org)return res.status(400).json({error:"Organization not found."});
   if(!String(b.name||"").trim()||!String(b.email||"").trim()||String(b.password||"").length<6)return res.status(400).json({error:"Name, email and password (6+ characters) are required."});
@@ -95,36 +93,37 @@ app.post("/api/users",(req,res)=>{
 });
 app.patch("/api/users/:id",(req,res)=>{
   const actor=auth(req,res);if(!actor)return;const target=db.prepare("SELECT * FROM users WHERE id=?").get(req.params.id);if(!target)return res.status(404).json({error:"User not found."});
-  const allowed=(actor.role==="Super Admin"&&target.id!==actor.id)||(actor.role==="Admin"&&target.organization_id===actor.organization_id&&target.role==="Finance User");
+  const allowed=actor.role==="Professional User"&&target.id!==actor.id&&target.organization_id===actor.organization_id&&(target.role==="Finance User"||target.role==="Professional User");
   if(!allowed)return res.status(403).json({error:"You are not authorized to manage this user."});
-  const b=req.body||{};if(actor.role==="Admin"&&b.role&&b.role!=="Finance User")return res.status(403).json({error:"Admins cannot change a Finance User into another role."});
+  const b=req.body||{};if(actor.role!=="Professional User"&&b.role)return res.status(403).json({error:"Only Professional Users can change workspace roles."});
+  if(b.role&&!["Finance User","Professional User"].includes(String(b.role)))return res.status(400).json({error:"Invalid workspace role."});
   if(b.email&&db.prepare("SELECT 1 FROM users WHERE lower(email)=? AND id<>?").get(String(b.email).trim().toLowerCase(),target.id))return res.status(409).json({error:"Another account already uses this email."});
   db.prepare("UPDATE users SET name=COALESCE(?,name),email=COALESCE(?,email),professional_role=COALESCE(?,professional_role),role=COALESCE(?,role),updated_at=CURRENT_TIMESTAMP WHERE id=?").run(b.name??null,b.email??null,b.professionalRole??null,b.role??null,target.id);
   const updated=db.prepare("SELECT * FROM users WHERE id=?").get(target.id);audit(actor,"Update user",updated.email);res.json(rowToUser(updated));
 });
 app.delete("/api/users/:id",(req,res)=>{
   const actor=auth(req,res);if(!actor)return;const target=db.prepare("SELECT * FROM users WHERE id=?").get(req.params.id);if(!target)return res.status(404).json({error:"User not found."});
-  const allowed=(actor.role==="Super Admin"&&target.id!==actor.id)||(actor.role==="Admin"&&target.organization_id===actor.organization_id&&target.role==="Finance User");
+  const allowed=actor.role==="Professional User"&&target.id!==actor.id&&target.organization_id===actor.organization_id&&(target.role==="Finance User"||target.role==="Professional User");
   if(!allowed)return res.status(403).json({error:"You are not authorized to manage this user."});
   db.prepare("UPDATE users SET active=0,updated_at=CURRENT_TIMESTAMP WHERE id=?").run(target.id);audit(actor,"Deactivate user",target.email);res.status(204).end();
 });
 app.post("/api/users/:id/reset-password",(req,res)=>{
   const actor=auth(req,res);if(!actor)return;const target=db.prepare("SELECT * FROM users WHERE id=? AND active=1").get(req.params.id);if(!target)return res.status(404).json({error:"User not found."});
-  const allowed=(actor.role==="Super Admin"&&target.id!==actor.id)||(actor.role==="Admin"&&target.organization_id===actor.organization_id&&target.role==="Finance User");
+  const allowed=actor.role==="Professional User"&&target.id!==actor.id&&target.organization_id===actor.organization_id&&(target.role==="Finance User"||target.role==="Professional User");
   if(!allowed)return res.status(403).json({error:"You are not authorized to manage this user."});
   const password=String(req.body?.password||"");if(password.length<6)return res.status(400).json({error:"Password must be at least 6 characters."});
   db.prepare("UPDATE users SET password_hash=?,updated_at=CURRENT_TIMESTAMP WHERE id=?").run(hash(password),target.id);audit(actor,"Reset password",target.email);res.status(204).end();
 });
 
-app.get("/api/clients",(req,res)=>{const actor=auth(req,res);if(!actor)return;res.json(orgQuery(actor,"clients"));});
+app.get("/api/clients",(req,res)=>{const actor=auth(req,res);if(!actor)return;if(actor.role!=="Professional User")return res.status(403).json({error:"Client management is available to Professional Users only."});res.json(orgQuery(actor,"clients"));});
 app.post("/api/clients",(req,res)=>{
-  const actor=auth(req,res);if(!actor)return;const b=req.body||{};if(!String(b.company||"").trim())return res.status(400).json({error:"Company name is required."});
+  const actor=auth(req,res);if(!actor)return;if(actor.role!=="Professional User")return res.status(403).json({error:"Client management is available to Professional Users only."});const b=req.body||{};if(!String(b.company||"").trim())return res.status(400).json({error:"Company name is required."});
   const row={id:crypto.randomUUID(),name:String(b.name||"New contact").trim(),company:String(b.company).trim(),industry:String(b.industry||"Technology"),email:String(b.email||""),phone:String(b.phone||""),fy:String(b.fy||"FY 2025-26"),status:String(b.status||"Onboarding"),team:String(b.team||"New Coverage"),projects:0,documents:0};
   db.prepare("INSERT INTO clients(id,name,company,industry,email,phone,fy,status,team,projects,documents,organization_id) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)").run(row.id,row.name,row.company,row.industry,row.email,row.phone,row.fy,row.status,row.team,0,0,actor.organization_id);
   audit(actor,"Create client",row.company);res.status(201).json(row);
 });
 
-app.get("/api/projects",(req,res)=>{const actor=auth(req,res);if(!actor)return;res.json(orgQuery(actor,"projects").map(parseProject));});
+app.get("/api/projects",(req,res)=>{const actor=auth(req,res);if(!actor)return;if(actor.role==="Individual")return res.status(403).json({error:"Project workspace is not available to Individual users."});res.json(orgQuery(actor,"projects").map(parseProject));});
 app.get("/api/documents",(req,res)=>{const actor=auth(req,res);if(!actor)return;res.json(orgQuery(actor,"documents").map(parseDocument));});
 app.post("/api/documents",(req,res)=>{
   const actor=auth(req,res);if(!actor)return;const b=req.body||{};
@@ -132,12 +131,12 @@ app.post("/api/documents",(req,res)=>{
   if(!project)return res.status(404).json({error:"Project not found."});
   if(!String(b.name||"").trim())return res.status(400).json({error:"File name is required."});
   const id=crypto.randomUUID(), uploadedAt=new Date().toISOString().slice(0,10);
-  db.prepare("INSERT INTO documents(id,name,type,size,status,uploaded_by,uploaded_at,project_id,organization_id,pages,storage_key,mime_type) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)").run(id,b.name,String(b.name).split(".").pop()?.toUpperCase()||"FILE",String(b.size||"Uploaded"),"Completed",actor.name,uploadedAt,b.projectId,actor.organization_id,Number(b.pages||1),b.storageKey||null,b.mimeType||null);
+  db.prepare("INSERT INTO documents(id,name,type,size,status,uploaded_by,uploaded_at,client_id,project_id,organization_id,pages,storage_key,mime_type) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)").run(id,b.name,String(b.name).split(".").pop()?.toUpperCase()||"FILE",String(b.size||"Uploaded"),"Completed",actor.name,uploadedAt,project.client_id,b.projectId,actor.organization_id,Number(b.pages||1),b.storageKey||null,b.mimeType||null);
   const out=parseDocument(db.prepare("SELECT * FROM documents WHERE id=?").get(id));audit(actor,"File upload",out.name,{projectId:b.projectId});res.status(201).json(out);
 });
 app.get("/api/tasks",(req,res)=>{const actor=auth(req,res);if(!actor)return;res.json(orgQuery(actor,"tasks","due ASC").map(parseTask));});
 app.patch("/api/tasks/:id",(req,res)=>{
-  const actor=auth(req,res);if(!actor)return;const target=actor.role==="Super Admin"?db.prepare("SELECT * FROM tasks WHERE id=?").get(req.params.id):db.prepare("SELECT * FROM tasks WHERE id=? AND organization_id=?").get(req.params.id,actor.organization_id);
+  const actor=auth(req,res);if(!actor)return;const target=db.prepare("SELECT * FROM tasks WHERE id=? AND organization_id=?").get(req.params.id,actor.organization_id);
   if(!target)return res.status(404).json({error:"Task not found."});const status=String(req.body?.status||"");
   if(!["To Do","In Progress","Review","Completed"].includes(status))return res.status(400).json({error:"Invalid task status."});
   db.prepare("UPDATE tasks SET status=?,updated_at=CURRENT_TIMESTAMP WHERE id=?").run(status,target.id);audit(actor,"Task status update",target.title,{status});
@@ -147,7 +146,7 @@ app.get("/api/compliance",(req,res)=>{const actor=auth(req,res);if(!actor)return
 app.get("/api/knowledge-base",(req,res)=>{const actor=auth(req,res);if(!actor)return;res.json(orgQuery(actor,"knowledge_items","updated DESC").map(parseKnowledge));});
 app.get("/api/audit-logs",(req,res)=>{
   const actor=auth(req,res);if(!actor)return;
-  const rows=actor.role==="Super Admin"?db.prepare("SELECT * FROM audit_logs ORDER BY timestamp DESC LIMIT 250").all():db.prepare("SELECT * FROM audit_logs WHERE organization_id=? ORDER BY timestamp DESC LIMIT 250").all(actor.organization_id);
+  const rows=db.prepare("SELECT * FROM audit_logs WHERE organization_id=? ORDER BY timestamp DESC LIMIT 250").all(actor.organization_id);
   res.json(rows.map(r=>({...r,metadata:r.metadata_json?JSON.parse(r.metadata_json):{}})));
 });
 
@@ -170,7 +169,8 @@ app.post("/api/assistant/conversations/:id/messages",(req,res)=>{
   const now=new Date().toISOString();db.prepare("INSERT INTO messages(id,conversation_id,role,content,created_at) VALUES (?,?,?,?,?)").run(crypto.randomUUID(),convo.id,"user",message,now);
   const docs=convo.project_id?db.prepare("SELECT name FROM documents WHERE project_id=? AND organization_id=? ORDER BY uploaded_at DESC LIMIT 4").all(convo.project_id,actor.organization_id):[];
   const source=docs[0]?.name||"No project document selected";
-  const answer=[`I’m operating as the ${convo.agent_id} for the selected finance project.`,"",`Question: “${message}”`,"","Answer: The Phase 1 backend persists this conversation and project context in SQLite. Source-grounded numeric extraction still requires the production document parser and LLM integration.","","Calculation: Revenue growth = (Current period − Prior period) / Prior period × 100.","",`Source: ${source}.`,"","Assumptions: Source figures are complete, consistently classified and approved for analysis.","","Limitations: Phase 1 stores structured metadata and chat history locally; binary XLSX/CSV/PDF/DOCX parsing and a production model endpoint remain Phase 2 integrations."].join("\n");
+  const answer=[`I’m operating as the ${convo.agent_id} for the selected finance project.`,"",`Question: “${message}”`,"","Answer: The Phase 1 backend persists this conversation and project context in SQLite. Source-grounded numeric extraction still requires the production document parser and LLM integration.","","Calculation: Revenue growth = (Current period − Prior period) / Prior period × 100.","",`Source: ${source}.`,"","Assumptions: Source figures are complete, consistently classified and approved for analysis.","","Limitations: Phase 1 stores structured metadata and chat history locally; binary XLSX/CSV/PDF/DOCX parsing and a production model endpoint remain Phase 2 integrations."].join("
+");
   const assistantId=crypto.randomUUID();db.prepare("INSERT INTO messages(id,conversation_id,role,content,created_at,limitations) VALUES (?,?,?,?,?,?)").run(assistantId,convo.id,"assistant",answer,new Date().toISOString(),"Production LLM and binary document parsing are Phase 2 integrations.");
   db.prepare("UPDATE conversations SET updated_at=CURRENT_TIMESTAMP WHERE id=?").run(convo.id);db.prepare("UPDATE organizations SET ai_requests=ai_requests+1 WHERE id=?").run(actor.organization_id);
   audit(actor,"AI request",`Conversation ${convo.id}`,{agent:convo.agent_id,projectId:convo.project_id});

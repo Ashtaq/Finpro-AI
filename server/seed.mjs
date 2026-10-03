@@ -4,9 +4,9 @@ export const organizations=[
 {id:"org-3",name:"Vertex Corporate Services",plan:"Enterprise",users:76,activeProjects:98,documentsProcessed:3210,aiRequests:18210}
 ];
 export const demoUsers=[
-{id:"u-super",name:"Platform Admin",email:"superadmin@finotech.demo",role:"Super Admin",professionalRole:"Other",organizationId:"platform",organizationName:"Finotech AI Platform"},
-{id:"u-admin",name:"Aarav Mehta",email:"admin@finotech.demo",role:"Admin",professionalRole:"CA",organizationId:"org-1",organizationName:"Meridian Advisory LLP"},
-{id:"u-finance",name:"Riya Sharma",email:"finance@finotech.demo",role:"Finance User",professionalRole:"Financial Analyst",organizationId:"org-1",organizationName:"Meridian Advisory LLP"}
+{id:"u-finance",name:"Riya Sharma",email:"finance@finotech.demo",role:"Finance User",professionalRole:"Other",organizationId:"org-1",organizationName:"Meridian Advisory LLP"},
+{id:"u-professional",name:"Aarav Mehta",email:"professional@finotech.demo",role:"Professional User",professionalRole:"CA",organizationId:"org-1",organizationName:"Meridian Advisory LLP"},
+{id:"u-individual",name:"Individual Demo",email:"individual@finotech.demo",role:"Individual",professionalRole:"Other",organizationId:"individual-demo",organizationName:"Individual Demo Workspace"}
 ];
 export const clients=[
 {id:"c-1",name:"Rahul Kapoor",company:"Aster Manufacturing Pvt Ltd",industry:"Manufacturing",email:"rahul@aster.example",phone:"+91 98765 43210",fy:"FY 2025-26",status:"Active",team:"Industrial Coverage",projects:4,documents:62},
@@ -21,11 +21,11 @@ export const projects=[
 {id:"p-4",name:"GreenBridge Due Diligence",clientId:"c-4",clientName:"GreenBridge Infra LLP",type:"Due Diligence",fy:"FY 2025-26",currency:"INR",status:"Draft",priority:"Low",startDate:"2026-09-15",endDate:"2026-11-15",team:["Riya Sharma"],tags:["DD","Contracts"]}
 ];
 export const documents=[
-{id:"d-1",name:"Aster_Annual_Report_FY25.pdf",type:"PDF",size:"4.8 MB",status:"Completed",uploadedBy:"Riya Sharma",uploadedAt:"2026-09-24",projectId:"p-1",pages:126},
-{id:"d-2",name:"Aster_PnL_FY25.xlsx",type:"XLSX",size:"1.3 MB",status:"Completed",uploadedBy:"Aarav Mehta",uploadedAt:"2026-09-23",projectId:"p-1"},
-{id:"d-3",name:"Aster_Transactions_Q4.csv",type:"CSV",size:"18.2 MB",status:"Analyzing",uploadedBy:"Riya Sharma",uploadedAt:"2026-09-26",projectId:"p-1"},
-{id:"d-4",name:"BluePeak_Tax_Recon.xlsx",type:"XLSX",size:"920 KB",status:"Processing",uploadedBy:"Aarav Mehta",uploadedAt:"2026-09-26",projectId:"p-2"},
-{id:"d-5",name:"Orion_Investor_Pack.pdf",type:"PDF",size:"8.1 MB",status:"Completed",uploadedBy:"Riya Sharma",uploadedAt:"2026-09-20",projectId:"p-3",pages:78}
+{id:"d-1",name:"Aster_Annual_Report_FY25.pdf",type:"PDF",size:"4.8 MB",status:"Completed",uploadedBy:"Riya Sharma",uploadedAt:"2026-09-24",clientId:"c-1",projectId:"p-1",pages:126},
+{id:"d-2",name:"Aster_PnL_FY25.xlsx",type:"XLSX",size:"1.3 MB",status:"Completed",uploadedBy:"Aarav Mehta",uploadedAt:"2026-09-23",clientId:"c-1",projectId:"p-1"},
+{id:"d-3",name:"Aster_Transactions_Q4.csv",type:"CSV",size:"18.2 MB",status:"Analyzing",uploadedBy:"Riya Sharma",uploadedAt:"2026-09-26",clientId:"c-1",projectId:"p-1"},
+{id:"d-4",name:"BluePeak_Tax_Recon.xlsx",type:"XLSX",size:"920 KB",status:"Processing",uploadedBy:"Aarav Mehta",uploadedAt:"2026-09-26",clientId:"c-2",projectId:"p-2"},
+{id:"d-5",name:"Orion_Investor_Pack.pdf",type:"PDF",size:"8.1 MB",status:"Completed",uploadedBy:"Riya Sharma",uploadedAt:"2026-09-20",clientId:"c-3",projectId:"p-3",pages:78}
 ];
 export const tasks=[
 {id:"t-1",title:"Review EBITDA bridge",client:"Aster Manufacturing Pvt Ltd",project:"FY26 Financial Health Review",assignee:"Riya Sharma",priority:"High",due:"2026-09-28",status:"In Progress"},

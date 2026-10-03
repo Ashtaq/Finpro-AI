@@ -63,16 +63,16 @@ export async function login(email: string, password: string, role: Role): Promis
   return safe;
 }
 
-export async function signup(name: string, email: string, password: string, professionalRole: ProfessionalRole): Promise<User> {
+export async function signup(name: string, email: string, password: string, professionalRole: ProfessionalRole, role: Role = "Finance User"): Promise<User> {
   if (await hasBackend()) {
-    const result = await request<{user: User}>("/api/auth/signup", {method:"POST", body:JSON.stringify({name,email,password,professionalRole})});
+    const result = await request<{user: User}>("/api/auth/signup", {method:"POST", body:JSON.stringify({name,email,password,professionalRole,role})});
     return result.user;
   }
   await delay(200);
   const users = localUsers();
   const normalized = email.trim().toLowerCase();
   if (users.some((u) => u.email.toLowerCase() === normalized)) throw new Error("An account with this email already exists.");
-  const next: StoredUser = {id:`u-${Date.now()}`,name:name.trim(),email:email.trim(),professionalRole,role:"Finance User",organizationId:"org-1",organizationName:"Meridian Advisory LLP",password};
+  const next: StoredUser = {id:`u-${Date.now()}`,name:name.trim(),email:email.trim(),professionalRole,role,organizationId:"org-1",organizationName:"Meridian Advisory LLP",password};
   localStorage.setItem(USERS_KEY, JSON.stringify([...users,next]));
   const {password:_password,...safe}=next; return safe;
 }
@@ -80,13 +80,13 @@ export async function signup(name: string, email: string, password: string, prof
 export async function listManagedUsers(actor: User): Promise<User[]> {
   if (await hasBackend()) return request<User[]>("/api/users", {}, actor.id);
   await delay(80);
-  return localUsers().filter((u)=>actor.role==="Super Admin"?u.id!==actor.id:u.organizationId===actor.organizationId&&u.role==="Finance User").map(({password:_password,...u})=>u);
+  return localUsers().filter((u)=>u.id!==actor.id&&u.organizationId===actor.organizationId&&(u.role==="Finance User"||u.role==="Professional User")).map(({password:_password,...u})=>u);
 }
 
 export async function createManagedUser(actor: User, input: {name:string;email:string;professionalRole:ProfessionalRole;role:Role;password:string;organizationId?:string}) {
   if (await hasBackend()) return request<User>("/api/users",{method:"POST",body:JSON.stringify(input)},actor.id);
-  const users=localUsers(); if(actor.role!=="Super Admin"&&input.role!=="Finance User")throw new Error("Admins can create Finance User accounts only.");
-  const orgId=input.organizationId||actor.organizationId; if(actor.role!=="Super Admin"&&orgId!==actor.organizationId)throw new Error("You can only create users in your organization.");
+  const users=localUsers(); if(actor.role!=="Professional User" || !["Finance User","Professional User"].includes(input.role))throw new Error("Only Professional Users can manage finance and professional accounts.");
+  const orgId=input.organizationId||actor.organizationId; if(actor.role!=="Professional User"&&orgId!==actor.organizationId)throw new Error("You can only create users in your organization.");
   if(users.some((u)=>u.email.toLowerCase()===input.email.trim().toLowerCase()))throw new Error("An account with this email already exists.");
   const org=organizations.find((o)=>o.id===orgId);
   const next:StoredUser={id:`u-${Date.now()}`,name:input.name.trim(),email:input.email.trim(),professionalRole:input.professionalRole,role:input.role,organizationId:orgId,organizationName:org?.name||actor.organizationName,password:input.password};
@@ -96,14 +96,14 @@ export async function createManagedUser(actor: User, input: {name:string;email:s
 export async function updateManagedUser(actor: User,targetId:string,patch:Partial<Pick<User,"name"|"email"|"professionalRole"|"role">>) {
   if(await hasBackend())return request<User>(`/api/users/${targetId}`,{method:"PATCH",body:JSON.stringify(patch)},actor.id);
   const users=localUsers();const target=users.find((u)=>u.id===targetId);if(!target)throw new Error("User not found.");
-  const allowed=actor.role==="Super Admin"&&target.id!==actor.id||actor.role==="Admin"&&target.organizationId===actor.organizationId&&target.role==="Finance User";if(!allowed)throw new Error("You are not authorized to manage this user.");
+  const allowed=actor.role==="Professional User"&&target.id!==actor.id&&target.organizationId===actor.organizationId&&(target.role==="Finance User"||target.role==="Professional User");if(!allowed)throw new Error("You are not authorized to manage this user.");
   const updated={...target,...patch} as StoredUser;users[users.findIndex((u)=>u.id===targetId)]=updated;localStorage.setItem(USERS_KEY,JSON.stringify(users));const {password:_password,...safe}=updated;return safe;
 }
 
 export async function deleteManagedUser(actor:User,targetId:string) {
   if(await hasBackend()){await request<void>(`/api/users/${targetId}`,{method:"DELETE"},actor.id);return;}
   const users=localUsers();const target=users.find((u)=>u.id===targetId);if(!target)throw new Error("User not found.");
-  const allowed=actor.role==="Super Admin"&&target.id!==actor.id||actor.role==="Admin"&&target.organizationId===actor.organizationId&&target.role==="Finance User";if(!allowed)throw new Error("You are not authorized to manage this user.");
+  const allowed=actor.role==="Professional User"&&target.id!==actor.id&&target.organizationId===actor.organizationId&&(target.role==="Finance User"||target.role==="Professional User");if(!allowed)throw new Error("You are not authorized to manage this user.");
   localStorage.setItem(USERS_KEY,JSON.stringify(users.filter((u)=>u.id!==targetId)));
 }
 
@@ -115,7 +115,7 @@ export async function resetManagedUserPassword(actor:User,targetId:string,passwo
 export async function fetchDashboard(role:Role) {
   const saved=localStorage.getItem("finotech_saas_user");const actor=saved?JSON.parse(saved) as User:null;
   if(actor&&await hasBackend())return request<any>("/api/dashboard",{},actor.id);
-  await delay(50);const current=localTasks();return {role,clients:clients.length,activeProjects:projects.filter((p)=>p.status==="Active").length,documents:documents.length+88,aiAnalyses:role==="Super Admin"?286:186,reports:64,pendingTasks:current.filter((t)=>t.status!=="Completed").length,upcomingDeadlines:compliance.filter((c)=>c.status!=="Overdue").length,aiUsage:usage.aiRequests};
+  await delay(50);const current=localTasks();return {role,clients:clients.length,activeProjects:projects.filter((p)=>p.status==="Active").length,documents:documents.length+88,aiAnalyses:role==="Professional User"?286:186,reports:64,pendingTasks:current.filter((t)=>t.status!=="Completed").length,upcomingDeadlines:compliance.filter((c)=>c.status!=="Overdue").length,aiUsage:usage.aiRequests};
 }
 
 export async function analyzeFinancials():Promise<AnalysisResult>{return {revenue:118.4,expenses:91.2,ebitda:27.2,ebitdaMargin:23,currentRatio:1.84,debtToEquity:0.62,roe:18.7,freeCashFlow:21.6,trend:[92,101,108,114,118,126]};}
