@@ -31,10 +31,7 @@ function auth(req,res) {
   if(!actor){res.status(401).json({error:"Authentication required"});return null;}
   return actor;
 }
-function orgQuery(actor, table, order="created_at DESC") {
-  return actor.role==="Super Admin" ? db.prepare(`SELECT * FROM ${table} ORDER BY ${order}`).all()
-    : db.prepare(`SELECT * FROM ${table} WHERE organization_id=? ORDER BY ${order}`).all(actor.organization_id);
-}
+function orgQuery(actor, table, order="created_at DESC") { return db.prepare(`SELECT * FROM ${table} WHERE organization_id=? ORDER BY ${order}`).all(actor.organization_id); }
 
 app.get("/api/health",(_req,res)=>res.json({ok:true,service:"finotech-local-api",database:"sqlite",storage:"local-disk",time:new Date().toISOString()}));
 
@@ -58,7 +55,7 @@ app.post("/api/auth/signup",(req,res)=>{
 
 app.get("/api/dashboard",(req,res)=>{
   const actor=auth(req,res);if(!actor)return;
-  const scoped=(base)=>actor.role==="Super Admin"?base:`${base} WHERE organization_id=?`;
+  const scoped=(base)=>`${base} WHERE organization_id=?`;
   const args=[actor.organization_id];
   const count=(sql,a=args)=>db.prepare(sql).get(...a)?.c||0;
   res.json({
@@ -68,8 +65,8 @@ app.get("/api/dashboard",(req,res)=>{
     documents:count(`SELECT COUNT(*) c FROM documents${scoped("")}`),
     aiAnalyses:count("SELECT COUNT(*) c FROM messages WHERE role='assistant'"),
     reports:0,
-    pendingTasks:count(`SELECT COUNT(*) c FROM tasks WHERE status!='Completed'${actor.role==="Super Admin"?"":" AND organization_id=?"}`),
-    upcomingDeadlines:count(`SELECT COUNT(*) c FROM compliance_items WHERE status!='Overdue'${actor.role==="Super Admin"?"":" AND organization_id=?"}`),
+    pendingTasks:count(`SELECT COUNT(*) c FROM tasks WHERE status!='Completed'${" AND organization_id=?"}`),
+    upcomingDeadlines:count(`SELECT COUNT(*) c FROM compliance_items WHERE status!='Overdue'${" AND organization_id=?"}`),
     aiUsage:count(`SELECT COALESCE(SUM(ai_requests),0) c FROM organizations${scoped("")}`)
   });
 });
@@ -110,7 +107,7 @@ app.delete("/api/users/:id",(req,res)=>{
 });
 app.post("/api/users/:id/reset-password",(req,res)=>{
   const actor=auth(req,res);if(!actor)return;const target=db.prepare("SELECT * FROM users WHERE id=? AND active=1").get(req.params.id);if(!target)return res.status(404).json({error:"User not found."});
-  const allowed=(actor.role==="Super Admin"&&target.id!==actor.id)||(actor.role==="Admin"&&target.organization_id===actor.organization_id&&target.role==="Finance User");
+  const allowed=actor.role==="Professional User"&&target.id!==actor.id&&target.organization_id===actor.organization_id&&(target.role==="Finance User"||target.role==="Professional User");
   if(!allowed)return res.status(403).json({error:"You are not authorized to manage this user."});
   const password=String(req.body?.password||"");if(password.length<6)return res.status(400).json({error:"Password must be at least 6 characters."});
   db.prepare("UPDATE users SET password_hash=?,updated_at=CURRENT_TIMESTAMP WHERE id=?").run(hash(password),target.id);audit(actor,"Reset password",target.email);res.status(204).end();
