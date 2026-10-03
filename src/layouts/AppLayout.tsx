@@ -8,7 +8,7 @@ const professionalGroups = [
  {title:"Administration",items:[["/settings","Settings",Settings,"settings"]]}
 ] as const;
 const individualGroups = [
- {title:"My Finance",items:[["/individual","Dashboard",LayoutDashboard,"individual"],["/assets","My Assets",Landmark,"assets"],["/documents","Documents",Database,"documents"],["/itr-filing","ITR Filing",FileCheck2,"itr"],["/settings","Settings",Settings,"settings"]]}
+ {title:"My Finance",items:[["/individual","Dashboard",LayoutDashboard,"individual"],["/assets","My Assets",Landmark,"assets"],["/documents","Documents",Database,"documents"],["/ai-agents","AI Agents",Sparkles,"ai"],["/ai-assistant","AI Assistant",MessageSquareText,"ai"],["/itr-filing","ITR Filing",FileCheck2,"itr"],["/settings","Settings",Settings,"settings"]]}
 ] as const;
 
 export default function AppLayout(){
