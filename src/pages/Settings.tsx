@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { Bell, Database, LockKeyhole, Save, SlidersHorizontal } from "lucide-react";
+import { Bell, Database, LockKeyhole, Save, SlidersHorizontal, UserRound } from "lucide-react";
 import { Badge, Button, PageHeader } from "../components/ui";
 import { useAuth } from "../context/AuthContext";
 import "../individual.css";
@@ -30,6 +30,20 @@ export default function Settings() {
           action={<Button><Save size={15} /> Save changes</Button>}
         />
         <div className="settings-grid">
+      <section className="panel">
+        <div className="panel-head">
+          <div><h2>Account management</h2><p>Manage your FinPro profile, account preferences and security for your assigned role.</p></div>
+          <UserRound size={18} />
+        </div>
+        <div className="profile-card">
+          <div className="profile-avatar">{user?.name.slice(0, 1)}</div>
+          <div><strong>{user?.name}</strong><span>{user?.email}</span><span>{user?.role}{user?.role === "Professional User" && user.professionalRole ? ` · ${user.professionalRole}` : ""}</span></div>
+        </div>
+        <div className="list-row"><div><strong>Profile & account details</strong><span>Review the identity and role associated with this account.</span></div><Badge tone="success">Active</Badge></div>
+        <div className="list-row"><div><strong>Account security</strong><span>Manage password, sign-in protection and active sessions.</span></div><Badge tone="success">Available</Badge></div>
+        <div className="list-row"><div><strong>Account preferences</strong><span>Control notifications and AI/workspace preferences.</span></div><Badge tone="success">Available</Badge></div>
+      </section>
+
           <section className="panel">
             <div className="panel-head">
               <div><h2>Account details</h2><p>Your signed-in Individual account.</p></div>
