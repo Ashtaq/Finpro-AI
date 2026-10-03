@@ -37,7 +37,7 @@ export default function Settings() {
         </div>
         <div className="profile-card">
           <div className="profile-avatar">{user?.name.slice(0, 1)}</div>
-          <div><strong>{user?.name}</strong><span>{user?.email}</span><span>{user?.role}{user?.role === "Professional User" && user.professionalRole ? ` · ${user.professionalRole}` : ""}</span></div>
+          <div><strong>{user?.name}</strong><span>{user?.email}</span><span>{user?.role}{user?.professionalRole ? ` · ${user.professionalRole}` : ""}</span></div>
         </div>
         <div className="list-row"><div><strong>Profile & account details</strong><span>Review the identity and role associated with this account.</span></div><Badge tone="success">Active</Badge></div>
         <div className="list-row"><div><strong>Account security</strong><span>Manage password, sign-in protection and active sessions.</span></div><Badge tone="success">Available</Badge></div>
