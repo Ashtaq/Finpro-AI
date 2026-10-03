@@ -13,10 +13,11 @@ npm run dev:full
 The frontend runs on http://localhost:5173. The professional API runs on http://127.0.0.1:8787 and the Individual tax API runs on http://127.0.0.1:8788.
 
 ## User types
-- Super Admin — platform administration
-- Admin — organization/team administration
-- Finance User — CA/CS/CFA/accounting/finance professional workspace
-- Individual — personal finance, asset management and ITR workspace
+- Professional User — CA, CS, auditor, CFA and other finance professionals managing clients, projects, documents and reports
+- Finance User — small-business owners managing their own business finances and reports
+- Individual User — salaried individuals managing personal income, assets, investments and ITR
+
+Admin and Super Admin roles are intentionally excluded from the current product and reserved for a future management module.
 
 ## Individual Phase 2 features
 - Individual signup and authentication
