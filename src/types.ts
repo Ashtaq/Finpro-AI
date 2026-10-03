@@ -17,7 +17,7 @@ export interface User {
 }
 
 export interface Organization { id:string; name:string; plan:"Free"|"Professional"|"Business"|"Enterprise"; users:number; activeProjects:number; documentsProcessed:number; aiRequests:number; }
-export interface Client { id:string; name:string; company:string; industry:string; email:string; phone:string; fy:string; status:Status; team:string; projects:number; documents:number; }
+export interface Client { id:string; name:string; company:string; industry:string; email:string; phone:string; alternatePhone?:string; clientType?:string; legalName?:string; contactPerson?:string; pan?:string; gstin?:string; cin?:string; address?:string; city?:string; state?:string; country?:string; pinCode?:string; businessType?:string; professionActivity?:string; gstRegistrationType?:string; taxRegime?:string; taxRegistrations?:string; advisor?:string; clientSince?:string; priority?:"High"|"Medium"|"Low"; communicationPreference?:string; notes?:string; internalRemarks?:string; fy:string; status:Status; team:string; projects:number; documents:number; }
 export interface Project { id:string; name:string; clientId:string; clientName:string; type:string; fy:string; currency:string; status:ProjectStatus; priority:"High"|"Medium"|"Low"; startDate:string; endDate:string; team:string[]; tags:string[]; }
 export interface DocumentRecord { id:string; name:string; type:string; size:string; status:"Uploading"|"Processing"|"Extracting"|"Analyzing"|"Completed"|"Failed"; uploadedBy:string; uploadedAt:string; clientId:string; projectId:string; pages?:number; }
 export interface ChatMessage { id:string; role:"user"|"assistant"; content:string; createdAt:string; evidence?:Evidence[]; calculation?:string; assumptions?:string[]; limitations?:string; }
