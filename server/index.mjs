@@ -131,8 +131,7 @@ app.post("/api/documents",(req,res)=>{
   const project=db.prepare("SELECT * FROM projects WHERE id=? AND organization_id=?").get(b.projectId,actor.organization_id);
   if(!project)return res.status(404).json({error:"Project not found."});
   if(!String(b.name||"").trim())return res.status(400).json({error:"File name is required."});
-  const id=crypto.randomUUID(), uploadedAt=new Date().toISOString().slice(0,10);
-  db.prepare("INSERT INTO documents(id,name,type,size,status,uploaded_by,uploaded_at,project_id,organization_id,pages,storage_key,mime_type) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)").run(id,b.name,String(b.name).split(".").pop()?.toUpperCase()||"FILE",String(b.size||"Uploaded"),"Completed",actor.name,uploadedAt,b.projectId,actor.organization_id,Number(b.pages||1),b.storageKey||null,b.mimeType||null);
+  const id=crypto.randomUUID(), uploadedAt=new Date().toISOString().slice(0,10);\n  db.prepare("INSERT INTO documents(id,name,type,size,status,uploaded_by,uploaded_at,client_id,project_id,organization_id,pages,storage_key,mime_type) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)").run(id,b.name,String(b.name).split(".").pop()?.toUpperCase()||"FILE",String(b.size||"Uploaded"),"Completed",actor.name,uploadedAt,project.client_id,b.projectId,actor.organization_id,Number(b.pages||1),b.storageKey||null,b.mimeType||null);
   const out=parseDocument(db.prepare("SELECT * FROM documents WHERE id=?").get(id));audit(actor,"File upload",out.name,{projectId:b.projectId});res.status(201).json(out);
 });
 app.get("/api/tasks",(req,res)=>{const actor=auth(req,res);if(!actor)return;res.json(orgQuery(actor,"tasks","due ASC").map(parseTask));});
