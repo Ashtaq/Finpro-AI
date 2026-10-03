@@ -6,7 +6,7 @@ interface AuthContextValue{user:User|null;loading:boolean;login:(email:string,pa
 const AuthContext=createContext<AuthContextValue|null>(null);
 const permissions:Record<Role,Set<string>>={
  "Professional User":new Set(["clients","projects","documents","ai","analysis","reports","tasks","compliance","knowledge","analytics","audit","settings"]),
- "Finance User":new Set(["documents","ai","analysis","reports","tasks","analytics","settings"]),
+ "Finance User":new Set(["projects","documents","ai","analysis","reports","tasks","analytics","settings"]),
  "Individual":new Set(["individual","assets","documents","itr","settings"])
 };
 const individualRequest=async<T>(path:string,body?:unknown):Promise<T>=>{const r=await fetch(path,{method:"POST",headers:{"Content-Type":"application/json"},body:body?JSON.stringify(body):undefined});const data=await r.json().catch(()=>({}));if(!r.ok)throw new Error(data.error||("Request failed ("+r.status+")"));return data;};
