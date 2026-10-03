@@ -86,7 +86,7 @@ export async function listManagedUsers(actor: User): Promise<User[]> {
 export async function createManagedUser(actor: User, input: {name:string;email:string;professionalRole:ProfessionalRole;role:Role;password:string;organizationId?:string}) {
   if (await hasBackend()) return request<User>("/api/users",{method:"POST",body:JSON.stringify(input)},actor.id);
   const users=localUsers(); if(actor.role!=="Professional User" || !["Finance User","Professional User"].includes(input.role))throw new Error("Only Professional Users can manage finance and professional accounts.");
-  const orgId=input.organizationId||actor.organizationId; if(actor.role!=="Super Admin"&&orgId!==actor.organizationId)throw new Error("You can only create users in your organization.");
+  const orgId=input.organizationId||actor.organizationId; if(actor.role!=="Professional User"&&orgId!==actor.organizationId)throw new Error("You can only create users in your organization.");
   if(users.some((u)=>u.email.toLowerCase()===input.email.trim().toLowerCase()))throw new Error("An account with this email already exists.");
   const org=organizations.find((o)=>o.id===orgId);
   const next:StoredUser={id:`u-${Date.now()}`,name:input.name.trim(),email:input.email.trim(),professionalRole:input.professionalRole,role:input.role,organizationId:orgId,organizationName:org?.name||actor.organizationName,password:input.password};
