@@ -43,7 +43,8 @@ app.post("/api/auth/login",(req,res)=>{
 });
 
 app.post("/api/auth/signup",(req,res)=>{
-  const name=String(req.body?.name||"").trim(), email=String(req.body?.email||"").trim(), password=String(req.body?.password||""), professionalRole=String(req.body?.professionalRole||"Other");
+  const name=String(req.body?.name||"").trim(), email=String(req.body?.email||"").trim(), password=String(req.body?.password||""), professionalRole=String(req.body?.professionalRole||"Other"), role=String(req.body?.role||"Finance User");
+  if(!["Finance User","Professional User"].includes(role))return res.status(400).json({error:"Only Finance User and Professional User accounts can be created here."});
   if(!name||!email||password.length<6)return res.status(400).json({error:"Name, email and password (6+ characters) are required."});
   if(db.prepare("SELECT 1 FROM users WHERE lower(email)=?").get(email.toLowerCase()))return res.status(409).json({error:"An account with this email already exists."});
   const organizationId=crypto.randomUUID(), organizationName=`${name}'s Finance Workspace`, userId=crypto.randomUUID();
