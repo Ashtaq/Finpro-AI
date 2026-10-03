@@ -15,6 +15,7 @@ app.use(express.json({ limit: "20mb" }));
 const hash = (value) => crypto.createHash("sha256").update(String(value)).digest("hex");
 const rowToUser = (r) => ({id:r.id,name:r.name,email:r.email,phone:r.phone||"",role:r.role,professionalRole:r.professional_role,organizationId:r.organization_id,organizationName:r.organization_name});
 const parseProject = (r) => ({id:r.id,name:r.name,clientId:r.client_id,clientName:r.client_name,type:r.type,fy:r.fy,currency:r.currency,status:r.status,priority:r.priority,startDate:r.start_date,endDate:r.end_date,team:JSON.parse(r.team_json||"[]"),tags:JSON.parse(r.tags_json||"[]")});
+const parseClient = (r) => ({id:r.id,name:r.name,company:r.company,industry:r.industry,email:r.email,phone:r.phone,alternatePhone:r.alternate_phone,clientType:r.client_type,legalName:r.legal_name,contactPerson:r.contact_person,pan:r.pan,gstin:r.gstin,cin:r.cin,address:r.address,city:r.city,state:r.state,country:r.country,pinCode:r.pin_code,businessType:r.business_type,professionActivity:r.profession_activity,gstRegistrationType:r.gst_registration_type,taxRegime:r.tax_regime,taxRegistrations:r.tax_registrations,advisor:r.advisor,clientSince:r.client_since,priority:r.priority,communicationPreference:r.communication_preference,notes:r.notes,internalRemarks:r.internal_remarks,fy:r.fy,status:r.status,team:r.team,projects:r.projects,documents:r.documents});
 const parseDocument = (r) => ({id:r.id,name:r.name,type:r.type,size:r.size,status:r.status,uploadedBy:r.uploaded_by,uploadedAt:r.uploaded_at,clientId:r.client_id,projectId:r.project_id,pages:r.pages});
 const parseTask = (r) => ({id:r.id,title:r.title,client:r.client,project:r.project,assignee:r.assignee,priority:r.priority,due:r.due,status:r.status});
 const parseCompliance = (r) => ({id:r.id,title:r.title,client:r.client,dueDate:r.due_date,category:r.category,status:r.status});
@@ -43,7 +44,8 @@ app.post("/api/auth/login",(req,res)=>{
 });
 
 app.post("/api/auth/signup",(req,res)=>{
-  const name=String(req.body?.name||"").trim(), email=String(req.body?.email||"").trim(), password=String(req.body?.password||""), professionalRole=String(req.body?.professionalRole||"Other");
+  const name=String(req.body?.name||"").trim(), email=String(req.body?.email||"").trim(), password=String(req.body?.password||""), professionalRole=String(req.body?.professionalRole||"Other"), role=String(req.body?.role||"Finance User");
+  if(!["Finance User","Professional User"].includes(role))return res.status(400).json({error:"Only Finance User and Professional User accounts can be created here."});
   if(!name||!email||password.length<6)return res.status(400).json({error:"Name, email and password (6+ characters) are required."});
   if(db.prepare("SELECT 1 FROM users WHERE lower(email)=?").get(email.toLowerCase()))return res.status(409).json({error:"An account with this email already exists."});
   const organizationId=crypto.randomUUID(), organizationName=`${name}'s Finance Workspace`, userId=crypto.randomUUID();
@@ -115,15 +117,25 @@ app.post("/api/users/:id/reset-password",(req,res)=>{
   db.prepare("UPDATE users SET password_hash=?,updated_at=CURRENT_TIMESTAMP WHERE id=?").run(hash(password),target.id);audit(actor,"Reset password",target.email);res.status(204).end();
 });
 
-app.get("/api/clients",(req,res)=>{const actor=auth(req,res);if(!actor)return;if(actor.role!=="Professional User")return res.status(403).json({error:"Client management is available to Professional Users only."});res.json(orgQuery(actor,"clients"));});
+app.get("/api/clients",(req,res)=>{const actor=auth(req,res);if(!actor)return;if(actor.role!=="Professional User")return res.status(403).json({error:"Client management is available to Professional Users only."});res.json(orgQuery(actor,"clients").map(parseClient));});
 app.post("/api/clients",(req,res)=>{
   const actor=auth(req,res);if(!actor)return;if(actor.role!=="Professional User")return res.status(403).json({error:"Client management is available to Professional Users only."});const b=req.body||{};if(!String(b.company||"").trim())return res.status(400).json({error:"Company name is required."});
   const row={id:crypto.randomUUID(),name:String(b.name||"New contact").trim(),company:String(b.company).trim(),industry:String(b.industry||"Technology"),email:String(b.email||""),phone:String(b.phone||""),fy:String(b.fy||"FY 2025-26"),status:String(b.status||"Onboarding"),team:String(b.team||"New Coverage"),projects:0,documents:0};
-  db.prepare("INSERT INTO clients(id,name,company,industry,email,phone,fy,status,team,projects,documents,organization_id) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)").run(row.id,row.name,row.company,row.industry,row.email,row.phone,row.fy,row.status,row.team,0,0,actor.organization_id);
-  audit(actor,"Create client",row.company);res.status(201).json(row);
+  db.prepare("INSERT INTO clients(id,name,company,industry,email,phone,client_type,legal_name,contact_person,pan,gstin,cin,address,city,state,country,pin_code,business_type,profession_activity,gst_registration_type,tax_regime,tax_registrations,advisor,client_since,priority,communication_preference,notes,internal_remarks,fy,status,team,projects,documents,organization_id) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)").run(row.id,row.name,row.company,row.industry,row.email,row.phone,String(b.clientType||"Business"),String(b.legalName||""),String(b.contactPerson||row.name),String(b.pan||""),String(b.gstin||""),String(b.cin||""),String(b.address||""),String(b.city||""),String(b.state||""),String(b.country||"India"),String(b.pinCode||""),String(b.businessType||""),String(b.professionActivity||""),String(b.gstRegistrationType||""),String(b.taxRegime||""),String(b.taxRegistrations||""),String(b.advisor||""),String(b.clientSince||new Date().toISOString().slice(0,10)),String(b.priority||"Medium"),String(b.communicationPreference||"Email"),String(b.notes||""),String(b.internalRemarks||""),row.fy,row.status,row.team,0,0,actor.organization_id);
+  const created=parseClient(db.prepare("SELECT * FROM clients WHERE id=?").get(row.id)); audit(actor,"Create client",row.company);res.status(201).json(created);
 });
 
 app.get("/api/projects",(req,res)=>{const actor=auth(req,res);if(!actor)return;if(actor.role==="Individual")return res.status(403).json({error:"Project workspace is not available to Individual users."});res.json(orgQuery(actor,"projects").map(parseProject));});
+app.post("/api/projects",(req,res)=>{
+  const actor=auth(req,res);if(!actor)return;if(actor.role==="Individual")return res.status(403).json({error:"Project workspace is not available to Individual users."});
+  const b=req.body||{}, client=db.prepare("SELECT * FROM clients WHERE id=? AND organization_id=?").get(b.clientId,actor.organization_id);
+  if(!client)return res.status(404).json({error:"Client not found in your organization."});
+  if(!String(b.name||"").trim())return res.status(400).json({error:"Project name is required."});
+  const id=crypto.randomUUID();
+  db.prepare("INSERT INTO projects(id,name,client_id,client_name,type,fy,currency,status,priority,start_date,end_date,team_json,tags_json,organization_id) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)").run(id,String(b.name).trim(),client.id,client.company,String(b.type||"Financial Analysis"),String(b.fy||client.fy||"FY 2025-26"),String(b.currency||"INR"),String(b.status||"Draft"),String(b.priority||"Medium"),String(b.startDate||new Date().toISOString().slice(0,10)),String(b.endDate||new Date().toISOString().slice(0,10)),JSON.stringify(Array.isArray(b.team)?b.team:[]),JSON.stringify(Array.isArray(b.tags)?b.tags:[]),actor.organization_id);
+  db.prepare("UPDATE clients SET projects=projects+1 WHERE id=?").run(client.id);
+  const out=parseProject(db.prepare("SELECT * FROM projects WHERE id=?").get(id));audit(actor,"Create project",out.name,{clientId:client.id});res.status(201).json(out);
+});
 app.get("/api/documents",(req,res)=>{const actor=auth(req,res);if(!actor)return;res.json(orgQuery(actor,"documents").map(parseDocument));});
 app.post("/api/documents",(req,res)=>{
   const actor=auth(req,res);if(!actor)return;const b=req.body||{};
