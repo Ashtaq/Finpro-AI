@@ -25,6 +25,11 @@ const app = createApp({ db, config, logger });
 const server = app.listen(config.port, config.host, () => {
   logger.info({ host: config.host, port: config.port, ai: config.ai.provider, kyc: config.kyc.mode }, "Finpro API listening");
 });
+server.on("error", (err) => {
+  if (err.code === "EADDRINUSE") logger.fatal(`Port ${config.port} is already in use. Stop the other Finpro/API process or set PORT.`);
+  else logger.fatal({ err }, "HTTP server failed");
+  process.exit(1);
+});
 server.requestTimeout = 120_000;
 server.headersTimeout = 65_000;
 server.keepAliveTimeout = 61_000;
@@ -45,6 +50,11 @@ function shutdown(signal) {
     logger.info("Shutdown complete");
     process.exit(0);
   });
+  // Idle keep-alive sockets (e.g. the Vite dev proxy) would otherwise hold close() open for up to
+  // keepAliveTimeout, leaving the port dead during `node --watch` restarts. Drop them now and give
+  // in-flight requests a short grace period.
+  server.closeIdleConnections();
+  setTimeout(() => server.closeAllConnections(), config.isProd ? 8_000 : 1_000).unref();
   setTimeout(() => process.exit(1), 10_000).unref();
 }
 process.on("SIGTERM", () => shutdown("SIGTERM"));

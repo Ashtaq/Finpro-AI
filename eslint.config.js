@@ -17,7 +17,7 @@ export default tseslint.config(
     },
   },
   {
-    files: ["server/**/*.mjs", "*.config.{js,ts}"],
+    files: ["server/**/*.mjs", "scripts/**/*.mjs", "*.config.{js,ts}"],
     extends: [js.configs.recommended],
     languageOptions: { globals: globals.node, sourceType: "module", ecmaVersion: 2024 },
     rules: { "no-unused-vars": ["error", { argsIgnorePattern: "^_", varsIgnorePattern: "^_" }] },
