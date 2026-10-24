@@ -1,10 +1,137 @@
-import { BrowserRouter,Navigate,Route,Routes } from "react-router-dom";
-import { AuthProvider,useAuth } from "./context/AuthContext";
-import Login from "./pages/Login";import Signup from "./pages/Signup";import KycCallback from "./pages/KycCallback";import AppLayout from "./layouts/AppLayout";
-import Dashboard from "./pages/Dashboard";import Clients from "./pages/Clients";import Projects from "./pages/Projects";import ProjectWorkspace from "./pages/ProjectWorkspace";import AIAgents from "./pages/AIAgents";import AIAssistant from "./pages/AIAssistant";import Documents from "./pages/Documents";import FinancialAnalysis from "./pages/FinancialAnalysis";import Reports from "./pages/Reports";import Tasks from "./pages/Tasks";import Compliance from "./pages/Compliance";import KnowledgeBase from "./pages/KnowledgeBase";import Analytics from "./pages/Analytics";import Team from "./pages/Team";import AuditLogs from "./pages/AuditLogs";import Settings from "./pages/Settings";
-import IndividualDashboard from "./pages/IndividualDashboard";import Assets from "./pages/Assets";import ITRFiling from "./pages/ITRFiling";import { ReactNode } from "react";
-function Protected({children}:{children:ReactNode}){const {user,loading}=useAuth();if(loading)return <div className="center-screen"><div className="spinner"/></div>;if(!user)return <Navigate to="/login" replace/>;return <>{children}</>;}
-function PermissionRoute({permission,children}:{permission:string;children:ReactNode}){const {can}=useAuth();if(!can(permission))return <Navigate to="/" replace/>;return <>{children}</>;}
-function Home(){const {user}=useAuth();return user?.role==="Individual"?<IndividualDashboard/>:<Dashboard/>;}
-function AppRoutes(){return <Routes><Route path="/login" element={<Login/>}/><Route path="/signup" element={<Signup/>}/><Route path="/kyc/callback" element={<KycCallback/>}/><Route path="/" element={<Protected><AppLayout/></Protected>}><Route index element={<Home/>}/><Route path="clients" element={<Clients/>}/><Route path="projects" element={<Projects/>}/><Route path="projects/:projectId" element={<ProjectWorkspace/>}/><Route path="ai-agents" element={<AIAgents/>}/><Route path="ai-assistant" element={<AIAssistant/>}/><Route path="documents" element={<Documents/>}/><Route path="analysis" element={<FinancialAnalysis/>}/><Route path="reports" element={<Reports/>}/><Route path="tasks" element={<Tasks/>}/><Route path="compliance" element={<Compliance/>}/><Route path="knowledge-base" element={<KnowledgeBase/>}/><Route path="analytics" element={<Analytics/>}/><Route path="team" element={<PermissionRoute permission="team"><Team/></PermissionRoute>}/><Route path="audit-logs" element={<PermissionRoute permission="audit"><AuditLogs/></PermissionRoute>}/><Route path="settings" element={<Settings/>}/><Route path="individual" element={<PermissionRoute permission="individual"><IndividualDashboard/></PermissionRoute>}/><Route path="assets" element={<PermissionRoute permission="assets"><Assets/></PermissionRoute>}/><Route path="itr-filing" element={<PermissionRoute permission="itr"><ITRFiling/></PermissionRoute>}/></Route><Route path="*" element={<Navigate to="/" replace/>}/></Routes>;}
-export default function App(){return <BrowserRouter><AuthProvider><AppRoutes/></AuthProvider></BrowserRouter>;}
+import { lazy, ReactNode, Suspense } from "react";
+import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
+import { ErrorBoundary, Spinner } from "./components/ui";
+import { AuthProvider, homePath, Permission, useAuth } from "./context/AuthContext";
+import AppLayout from "./layouts/AppLayout";
+import Login from "./pages/Login";
+import Signup from "./pages/Signup";
+
+const Dashboard = lazy(() => import("./pages/Dashboard"));
+const Clients = lazy(() => import("./pages/Clients"));
+const Projects = lazy(() => import("./pages/Projects"));
+const ProjectWorkspace = lazy(() => import("./pages/ProjectWorkspace"));
+const AIAgents = lazy(() => import("./pages/AIAgents"));
+const AIAssistant = lazy(() => import("./pages/AIAssistant"));
+const Documents = lazy(() => import("./pages/Documents"));
+const FinancialAnalysis = lazy(() => import("./pages/FinancialAnalysis"));
+const Reports = lazy(() => import("./pages/Reports"));
+const Tasks = lazy(() => import("./pages/Tasks"));
+const Compliance = lazy(() => import("./pages/Compliance"));
+const KnowledgeBase = lazy(() => import("./pages/KnowledgeBase"));
+const Analytics = lazy(() => import("./pages/Analytics"));
+const Team = lazy(() => import("./pages/Team"));
+const AuditLogs = lazy(() => import("./pages/AuditLogs"));
+const Settings = lazy(() => import("./pages/Settings"));
+const IndividualDashboard = lazy(() => import("./pages/IndividualDashboard"));
+const Assets = lazy(() => import("./pages/Assets"));
+const ITRFiling = lazy(() => import("./pages/ITRFiling"));
+const NotFound = lazy(() => import("./pages/NotFound"));
+
+function FullScreenSpinner() {
+  return (
+    <div className="center-screen">
+      <div className="spinner" />
+    </div>
+  );
+}
+
+function Protected({ children }: { children: ReactNode }) {
+  const { user, loading } = useAuth();
+  if (loading) return <FullScreenSpinner />;
+  if (!user) return <Navigate to="/login" replace />;
+  return <>{children}</>;
+}
+
+function PublicOnly({ children }: { children: ReactNode }) {
+  const { user, loading } = useAuth();
+  if (loading) return <FullScreenSpinner />;
+  if (user) return <Navigate to={homePath(user.role)} replace />;
+  return <>{children}</>;
+}
+
+function Guard({ permission, children }: { permission: Permission; children: ReactNode }) {
+  const { can, user } = useAuth();
+  if (!can(permission)) return <Navigate to={user ? homePath(user.role) : "/login"} replace />;
+  return <Suspense fallback={<Spinner />}>{children}</Suspense>;
+}
+
+function Home() {
+  const { user } = useAuth();
+  if (user?.role === "Individual") return <Navigate to="/individual" replace />;
+  return (
+    <Guard permission="dashboard">
+      <Dashboard />
+    </Guard>
+  );
+}
+
+const guarded: [string, Permission, ReactNode][] = [
+  ["clients", "clients", <Clients />],
+  ["projects", "projects", <Projects />],
+  ["projects/:projectId", "projects", <ProjectWorkspace />],
+  ["ai-agents", "ai", <AIAgents />],
+  ["ai-assistant", "ai", <AIAssistant />],
+  ["documents", "documents", <Documents />],
+  ["analysis", "analysis", <FinancialAnalysis />],
+  ["reports", "reports", <Reports />],
+  ["tasks", "tasks", <Tasks />],
+  ["compliance", "compliance", <Compliance />],
+  ["knowledge-base", "knowledge", <KnowledgeBase />],
+  ["analytics", "analytics", <Analytics />],
+  ["team", "team", <Team />],
+  ["audit-logs", "audit", <AuditLogs />],
+  ["settings", "settings", <Settings />],
+  ["individual", "individual", <IndividualDashboard />],
+  ["assets", "assets", <Assets />],
+  ["itr-filing", "itr", <ITRFiling />],
+];
+
+export default function App() {
+  return (
+    <ErrorBoundary>
+      <BrowserRouter>
+        <AuthProvider>
+          <Routes>
+            <Route
+              path="/login"
+              element={
+                <PublicOnly>
+                  <Login />
+                </PublicOnly>
+              }
+            />
+            <Route
+              path="/signup"
+              element={
+                <PublicOnly>
+                  <Signup />
+                </PublicOnly>
+              }
+            />
+            <Route
+              path="/"
+              element={
+                <Protected>
+                  <AppLayout />
+                </Protected>
+              }
+            >
+              <Route index element={<Home />} />
+              {guarded.map(([path, permission, element]) => (
+                <Route key={path} path={path} element={<Guard permission={permission}>{element}</Guard>} />
+              ))}
+              <Route
+                path="*"
+                element={
+                  <Suspense fallback={<Spinner />}>
+                    <NotFound />
+                  </Suspense>
+                }
+              />
+            </Route>
+          </Routes>
+        </AuthProvider>
+      </BrowserRouter>
+    </ErrorBoundary>
+  );
+}

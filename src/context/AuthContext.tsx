@@ -1,29 +1,120 @@
-import { createContext,useContext,useEffect,useMemo,useState,ReactNode } from "react";
-import { Role,User } from "../types";
-import { demoUsers } from "../data/mockData";
-import * as api from "../services/mockApi";
-export type SignupKyc={kycRef:string;name:string;dob:string;pan:string};
-interface AuthContextValue{user:User|null;loading:boolean;login:(email:string,password:string,role:Role)=>Promise<void>;signup:(name:string,email:string,password:string,professionalRole:User["professionalRole"],accountType:Role,kyc:SignupKyc)=>Promise<void>;logout:()=>void;can:(permission:string)=>boolean;refreshUser:(next:User)=>void;updateAccount:(data:{name:string;email:string;phone:string})=>Promise<void>;changePassword:(currentPassword:string,newPassword:string)=>Promise<void>;}
-const AuthContext=createContext<AuthContextValue|null>(null);
-const permissions:Record<Role,Set<string>>={
- "Professional User":new Set(["clients","projects","documents","ai","analysis","reports","tasks","compliance","knowledge","analytics","audit","settings"]),
- "Finance User":new Set(["projects","documents","ai","analysis","reports","tasks","analytics","settings"]),
- "Individual":new Set(["individual","assets","documents","ai","itr","settings"])
+import { createContext, ReactNode, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import { api } from "../lib/api";
+import { Meta, ProfessionalRole, Role, User } from "../types";
+
+export type Permission =
+  | "dashboard"
+  | "clients"
+  | "projects"
+  | "documents"
+  | "ai"
+  | "analysis"
+  | "reports"
+  | "tasks"
+  | "compliance"
+  | "knowledge"
+  | "analytics"
+  | "team"
+  | "audit"
+  | "settings"
+  | "individual"
+  | "assets"
+  | "itr";
+
+// Mirrors server-side role checks; the server is the source of truth.
+const PERMISSIONS: Record<Role, Set<Permission>> = {
+  "Professional User": new Set([
+    "dashboard",
+    "clients",
+    "projects",
+    "documents",
+    "ai",
+    "analysis",
+    "reports",
+    "tasks",
+    "compliance",
+    "knowledge",
+    "analytics",
+    "team",
+    "audit",
+    "settings",
+  ]),
+  "Finance User": new Set(["dashboard", "projects", "documents", "ai", "analysis", "reports", "tasks", "analytics", "settings"]),
+  Individual: new Set(["individual", "assets", "documents", "ai", "itr", "reports", "settings"]),
 };
-const individualRequest=async <T,>(path:string,body?:unknown):Promise<T>=>{
- const response=await fetch(path,{method:"POST",headers:{"Content-Type":"application/json"},...(body!==undefined?{body:JSON.stringify(body)}:{})});
- const data=await response.json().catch(()=>({}));if(!response.ok)throw new Error(data.error||("Request failed ("+response.status+")"));return data as T;
-};
-export function AuthProvider({children}:{children:ReactNode}){
- const [user,setUser]=useState<User|null>(null);const [loading,setLoading]=useState(true);
- useEffect(()=>{try{const saved=localStorage.getItem("finotech_saas_user");if(saved)setUser(JSON.parse(saved));}catch{localStorage.removeItem("finotech_saas_user");}setLoading(false);},[]);
- const persist=(next:User|null)=>{setUser(next);if(next)localStorage.setItem("finotech_saas_user",JSON.stringify(next));else localStorage.removeItem("finotech_saas_user");};
- const login=async(email:string,password:string,role:Role)=>{if(!email||!password)throw new Error("Enter email and password.");if(role==="Individual"){try{const r=await individualRequest<{user:User}>("/api/individual/auth/login",{email,password});persist(r.user);return;}catch(e){const demo=email.toLowerCase()==="individual@finotech.demo"&&password==="demo123";if(demo){persist({id:"u-individual-demo",name:"Individual Demo",email,role:"Individual",professionalRole:"Other",organizationId:"individual-demo",organizationName:"Individual Demo Workspace"});return;}throw e;}}persist(await api.login(email,password,role));};
- const signup=async(name:string,email:string,password:string,professionalRole:User["professionalRole"],accountType:Role,kyc:SignupKyc)=>{if(!kyc?.kycRef)throw new Error("Complete Aadhaar and PAN verification with DigiLocker first.");if(accountType==="Individual"){const r=await individualRequest<{user:User}>("/api/individual/auth/signup",{name,email,password,professionalRole,kycRef:kyc.kycRef,kycName:kyc.name,kycDob:kyc.dob,kycPan:kyc.pan});persist(r.user);return;}persist(await api.signup(name,email,password,professionalRole,accountType,kyc));};
- const logout=()=>{persist(null);sessionStorage.removeItem("finotech_ai_conversation");sessionStorage.removeItem("finpro_kyc_ref");sessionStorage.removeItem("finpro_kyc_callback");};const can=(permission:string)=>!!user&&permissions[user.role].has(permission);const refreshUser=(next:User)=>persist(next);
- const updateAccount=async(data:{name:string;email:string;phone:string})=>{if(!user)throw new Error("You must be signed in.");const base=user.role==="Individual"?"/api/individual/account":"/api/account";const r=await fetch(base,{method:"PATCH",headers:{"Content-Type":"application/json","x-user-id":user.id},body:JSON.stringify(data)});const body=await r.json().catch(()=>({}));if(!r.ok)throw new Error(body.error||"Unable to update account.");persist(body as User);};
- const changePassword=async(currentPassword:string,newPassword:string)=>{if(!user)throw new Error("You must be signed in.");const base=user.role==="Individual"?"/api/individual/account/change-password":"/api/account/change-password";const r=await fetch(base,{method:"POST",headers:{"Content-Type":"application/json","x-user-id":user.id},body:JSON.stringify({currentPassword,newPassword})});const body=await r.json().catch(()=>({}));if(!r.ok)throw new Error(body.error||"Unable to change password.");};
- const value=useMemo(()=>({user,loading,login,signup,logout,can,refreshUser,updateAccount,changePassword}),[user,loading]);return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+
+export interface SignupInput {
+  name: string;
+  email: string;
+  password: string;
+  role: Role;
+  professionalRole: ProfessionalRole;
+  organizationName?: string;
+  acceptTerms: boolean;
 }
-export function useAuth(){const value=useContext(AuthContext);if(!value)throw new Error("useAuth must be used inside AuthProvider");return value;}
-export const DEMO_ACCOUNTS=demoUsers;
+
+interface AuthValue {
+  user: User | null;
+  meta: Meta | null;
+  loading: boolean;
+  login: (email: string, password: string) => Promise<User>;
+  signup: (input: SignupInput) => Promise<User>;
+  logout: () => Promise<void>;
+  setUser: (user: User) => void;
+  can: (permission: Permission) => boolean;
+}
+
+const AuthContext = createContext<AuthValue | null>(null);
+
+export function AuthProvider({ children }: { children: ReactNode }) {
+  const [user, setUser] = useState<User | null>(null);
+  const [meta, setMeta] = useState<Meta | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let alive = true;
+    Promise.allSettled([api.get<{ user: User }>("/auth/me"), api.get<Meta>("/meta")]).then(([me, m]) => {
+      if (!alive) return;
+      if (me.status === "fulfilled") setUser(me.value.user);
+      if (m.status === "fulfilled") setMeta(m.value);
+      setLoading(false);
+    });
+    const onUnauthorized = () => setUser(null);
+    window.addEventListener("finpro:unauthorized", onUnauthorized);
+    return () => {
+      alive = false;
+      window.removeEventListener("finpro:unauthorized", onUnauthorized);
+    };
+  }, []);
+
+  const login = useCallback(async (email: string, password: string) => {
+    const { user } = await api.post<{ user: User }>("/auth/login", { email, password });
+    setUser(user);
+    return user;
+  }, []);
+
+  const signup = useCallback(async (input: SignupInput) => {
+    const { user } = await api.post<{ user: User }>("/auth/signup", { ...input });
+    setUser(user);
+    return user;
+  }, []);
+
+  const logout = useCallback(async () => {
+    await api.post("/auth/logout").catch(() => undefined);
+    setUser(null);
+  }, []);
+
+  const value = useMemo<AuthValue>(
+    () => ({ user, meta, loading, login, signup, logout, setUser, can: (p) => !!user && PERMISSIONS[user.role].has(p) }),
+    [user, meta, loading, login, signup, logout],
+  );
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+}
+
+export function useAuth() {
+  const value = useContext(AuthContext);
+  if (!value) throw new Error("useAuth must be used inside AuthProvider");
+  return value;
+}
+
+export const homePath = (role: Role) => (role === "Individual" ? "/individual" : "/");

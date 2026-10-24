@@ -1,0 +1,14 @@
+**/node_modules
+dist
+server/data
+data
+.git
+.github
+.vscode
+**/*.db
+**/*.db-*
+.env
+.env.*
+!.env.example
+docs
+*.md

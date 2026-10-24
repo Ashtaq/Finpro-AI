@@ -1,9 +1,19 @@
-import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
+import { defineConfig } from "vite";
+
 export default defineConfig({
- plugins:[react()],
- server:{port:5173,host:"0.0.0.0",proxy:{
-   "/api/individual":{target:"http://127.0.0.1:8788",changeOrigin:true},
-   "/api":{target:"http://127.0.0.1:8787",changeOrigin:true}
- }}
+  plugins: [react()],
+  server: {
+    port: 5173,
+    proxy: { "/api": { target: "http://127.0.0.1:8787", changeOrigin: false } },
+  },
+  build: {
+    assetsDir: "static",
+    sourcemap: false,
+    rollupOptions: {
+      output: {
+        manualChunks: { react: ["react", "react-dom", "react-router-dom"], charts: ["recharts"] },
+      },
+    },
+  },
 });

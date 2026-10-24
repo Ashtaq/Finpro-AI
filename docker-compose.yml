@@ -1,0 +1,25 @@
+# Local production-like run:  docker compose up --build
+# Then open http://localhost:8787. Reads .env if present — production rules apply (SEED_DEMO is refused).
+services:
+  finpro:
+    build: .
+    image: finpro-ai:latest
+    ports:
+      - "8787:8787"
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      NODE_ENV: ${NODE_ENV:-production}
+      APP_ORIGIN: ${APP_ORIGIN:-http://localhost:8787}
+    volumes:
+      - finpro-data:/data
+    restart: unless-stopped
+    read_only: true
+    tmpfs:
+      - /tmp
+    security_opt:
+      - no-new-privileges:true
+
+volumes:
+  finpro-data:
