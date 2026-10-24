@@ -1,11 +1,122 @@
-import { useState } from "react";
-import { BarChart3, Calculator, Download, RefreshCcw, ShieldAlert } from "lucide-react";
-import { ResponsiveContainer, BarChart, Bar, CartesianGrid, XAxis, YAxis, Tooltip, LineChart, Line } from "recharts";
-import { analyzeFinancials } from "../services/mockApi";
-import { Badge, Button, MetricCard, PageHeader } from "../components/ui";
-import { AnalysisResult } from "../types";
+import { useMemo, useState } from "react";
+import { BarChart3, Calculator, Printer, ShieldAlert } from "lucide-react";
+import { Button, MetricCard, Notice, PageHeader } from "../components/ui";
 
-export default function FinancialAnalysis(){const [result,setResult]=useState<AnalysisResult|null>(null);const [loading,setLoading]=useState(false);const [scenario,setScenario]=useState("Base case");
-const run=async()=>{setLoading(true);setResult(await analyzeFinancials());setLoading(false)};
-const forecast=["FY22","FY23","FY24","FY25","FY26","FY27"].map((year,i)=>({year,value:result?.trend[i]??[92,101,108,114,118,126][i]}));
-return <><PageHeader eyebrow="FINANCIAL INTELLIGENCE" title="Financial Analysis" description="Statement analysis, ratios, forecasting and scenario views with transparent calculations." action={<><Button variant="secondary"><Download size={15}/> Export</Button><Button onClick={run}><RefreshCcw size={15}/> {loading?"Analyzing":"Run analysis"}</Button></>}/><div className="analysis-layout"><div className="panel"><div className="panel-head"><div><h2>Input financials</h2><p>Demo values represent authorized project data in mock mode.</p></div></div><div className="form-grid single"><label>Revenue (Cr)<input defaultValue="118.4" type="number"/></label><label>Expenses (Cr)<input defaultValue="91.2" type="number"/></label><label>Current assets (Cr)<input defaultValue="74.0" type="number"/></label><label>Current liabilities (Cr)<input defaultValue="40.2" type="number"/></label><label>Debt (Cr)<input defaultValue="31.0" type="number"/></label><label>Equity (Cr)<input defaultValue="50.0" type="number"/></label></div><div className="scenario-row"><span>Forecast scenario</span><select value={scenario} onChange={e=>setScenario(e.target.value)}><option>Base case</option><option>Optimistic case</option><option>Conservative case</option></select></div></div>{result?<div className="analysis-results"><div className="metric-grid compact"><MetricCard label="Revenue" value={`₹${result.revenue} Cr`} icon={<BarChart3 size={18}/>} delta="+8.2% YoY"/><MetricCard label="EBITDA" value={`₹${result.ebitda} Cr`} icon={<Calculator size={18}/>} delta={`${result.ebitdaMargin}% margin`}/><MetricCard label="Current Ratio" value={result.currentRatio} icon={<Calculator size={18}/>} delta="liquidity"/><MetricCard label="Debt / Equity" value={result.debtToEquity} icon={<ShieldAlert size={18}/>} delta="leverage"/></div><div className="grid-2"><div className="panel"><div className="panel-head"><h2>Forecast</h2><Badge tone="info">{scenario}</Badge></div><div className="chart-box tall"><ResponsiveContainer width="100%" height="100%"><LineChart data={forecast}><CartesianGrid vertical={false}/><XAxis dataKey="year"/><YAxis/><Tooltip/><Line dataKey="value" stroke="#3784ff" strokeWidth={3}/></LineChart></ResponsiveContainer></div></div><div className="panel"><div className="panel-head"><h2>Key ratios</h2><p>Current-period summary</p></div><div className="ratio-list">{[["Current Ratio",result.currentRatio,"Healthy liquidity context"],["Debt / Equity",result.debtToEquity,"Moderate leverage"],["ROE",`${result.roe}%`,"Return profile"],["Free Cash Flow",`₹${result.freeCashFlow} Cr`,"Cash generation"]].map(x=><div className="ratio-row" key={x[0]}><div><strong>{x[0]}</strong><span>{x[2]}</span></div><b>{x[1]}</b></div>)}</div></div></div><div className="notice"><div><strong>Interpretation vs fact</strong><span>Calculated metrics are separated from AI interpretation. Potential risks are not definitive fraud findings and should be reviewed against the source data.</span></div></div></div>:<div className="panel empty-panel"><div className="ai-empty"><BarChart3 size={30}/><h2>Run financial analysis</h2><p>Generate P&L, balance sheet, ratio and forecast views from structured project data.</p><Button onClick={run}>Generate analysis</Button></div></div>}</div></>;}
+// Deterministic ratio calculator. Every metric is a transparent formula over the inputs — no AI.
+const FIELDS = [
+  ["revenue", "Revenue from operations"],
+  ["operatingExpenses", "Operating expenses (excl. D&A)"],
+  ["depreciation", "Depreciation & amortisation"],
+  ["interest", "Finance costs"],
+  ["tax", "Tax expense"],
+  ["currentAssets", "Current assets"],
+  ["inventory", "Inventory"],
+  ["currentLiabilities", "Current liabilities"],
+  ["totalDebt", "Total borrowings"],
+  ["equity", "Shareholders' equity"],
+  ["operatingCashFlow", "Cash flow from operations"],
+  ["capex", "Capital expenditure"],
+] as const;
+type Key = (typeof FIELDS)[number][0];
+
+const ratio = (a: number, b: number) => (b ? a / b : NaN);
+const fmt = (v: number, digits = 2, suffix = "") => (Number.isFinite(v) ? `${v.toFixed(digits)}${suffix}` : "—");
+
+export default function FinancialAnalysis() {
+  const [unit, setUnit] = useState("₹ Cr");
+  const [v, setV] = useState<Record<Key, string>>(() => Object.fromEntries(FIELDS.map(([k]) => [k, ""])) as Record<Key, string>);
+  const n = (k: Key) => Number(v[k]) || 0;
+
+  const r = useMemo(() => {
+    const ebitda = n("revenue") - n("operatingExpenses");
+    const ebit = ebitda - n("depreciation");
+    const pbt = ebit - n("interest");
+    const pat = pbt - n("tax");
+    return {
+      ebitda,
+      pat,
+      rows: [
+        ["EBITDA margin", fmt(ratio(ebitda, n("revenue")) * 100, 1, "%"), "(Revenue − Operating expenses) ÷ Revenue"],
+        ["Net profit margin", fmt(ratio(pat, n("revenue")) * 100, 1, "%"), "PAT ÷ Revenue"],
+        ["Current ratio", fmt(ratio(n("currentAssets"), n("currentLiabilities"))), "Current assets ÷ Current liabilities"],
+        ["Quick ratio", fmt(ratio(n("currentAssets") - n("inventory"), n("currentLiabilities"))), "(Current assets − Inventory) ÷ Current liabilities"],
+        ["Debt / Equity", fmt(ratio(n("totalDebt"), n("equity"))), "Total borrowings ÷ Equity"],
+        ["Interest coverage", fmt(ratio(ebit, n("interest")), 1, "x"), "EBIT ÷ Finance costs"],
+        ["Return on equity", fmt(ratio(pat, n("equity")) * 100, 1, "%"), "PAT ÷ Equity"],
+        [
+          "Free cash flow",
+          Number.isFinite(n("operatingCashFlow") - n("capex")) ? `${(n("operatingCashFlow") - n("capex")).toFixed(2)} ${unit}` : "—",
+          "Operating cash flow − Capex",
+        ],
+      ] as const,
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [v, unit]);
+
+  const hasInput = Object.values(v).some((x) => x !== "");
+  return (
+    <>
+      <PageHeader
+        eyebrow="FINANCIAL INTELLIGENCE"
+        title="Financial Analysis"
+        description="Enter figures from audited statements to compute standard ratios. Every result shows its formula."
+        action={
+          <Button variant="secondary" onClick={() => window.print()} disabled={!hasInput}>
+            <Printer size={15} /> Print
+          </Button>
+        }
+      />
+      <div className="analysis-layout">
+        <div className="panel no-print">
+          <div className="panel-head">
+            <div>
+              <h2>Inputs</h2>
+              <p>Use one unit consistently for all figures.</p>
+            </div>
+            <select value={unit} onChange={(e) => setUnit(e.target.value)} aria-label="Unit">
+              <option>₹ Cr</option>
+              <option>₹ Lakh</option>
+              <option>₹</option>
+            </select>
+          </div>
+          <div className="form-grid single">
+            {FIELDS.map(([k, label]) => (
+              <label key={k}>
+                {label}
+                <input type="number" inputMode="decimal" step="any" value={v[k]} onChange={(e) => setV({ ...v, [k]: e.target.value })} />
+              </label>
+            ))}
+          </div>
+        </div>
+        <div className="analysis-results">
+          <div className="metric-grid compact">
+            <MetricCard label="Revenue" value={`${n("revenue").toFixed(2)} ${unit}`} icon={<BarChart3 size={18} />} />
+            <MetricCard label="EBITDA" value={`${r.ebitda.toFixed(2)} ${unit}`} icon={<Calculator size={18} />} />
+            <MetricCard label="Profit after tax" value={`${r.pat.toFixed(2)} ${unit}`} icon={<Calculator size={18} />} />
+            <MetricCard label="Debt / Equity" value={r.rows[4][1]} icon={<ShieldAlert size={18} />} />
+          </div>
+          <div className="panel">
+            <div className="panel-head">
+              <h2>Ratios</h2>
+              <p>Blank where the denominator is zero</p>
+            </div>
+            <div className="ratio-list">
+              {r.rows.map(([label, value, formula]) => (
+                <div className="ratio-row" key={label}>
+                  <div>
+                    <strong>{label}</strong>
+                    <span>{formula}</span>
+                  </div>
+                  <b>{value}</b>
+                </div>
+              ))}
+            </div>
+          </div>
+          <Notice title="Interpretation is yours">
+            These are arithmetic results only. Benchmarks vary by industry; review against the source statements before drawing conclusions.
+          </Notice>
+        </div>
+      </div>
+    </>
+  );
+}

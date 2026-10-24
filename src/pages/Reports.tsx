@@ -1,19 +1,203 @@
-import { FileBarChart, FileSpreadsheet, FileText, Presentation, Sparkles } from "lucide-react";
-import { Badge, Button, PageHeader } from "../components/ui";
+import { Printer } from "lucide-react";
+import { Button, ErrorBox, PageHeader, Spinner } from "../components/ui";
 import { useAuth } from "../context/AuthContext";
+import { api } from "../lib/api";
+import { formatDate, formatDateTime, formatINR } from "../lib/format";
+import { useAsync } from "../lib/useAsync";
+import { ComplianceItem, IndividualAsset, ItrReturn, Project, Task } from "../types";
 
-const professionalReports=[["Aster Financial Health Review","Financial Analysis","Aster Manufacturing Pvt Ltd","FY 2025-26","DOCX"],["Orion Valuation Pack","Investment Report","Orion Software Solutions","FY 2025-26","PPTX"],["Aster Transaction Anomaly Review","Audit Report","Aster Manufacturing Pvt Ltd","Q4 FY26","XLSX"]];
-const financeReports=[["Monthly Business Performance","P&L + Cash Flow","Current Business","Sep 2026","PDF"],["GST & Tax Summary","Tax Report","Current Business","FY 2025-26","XLSX"],["Expense & Profitability Review","Business Analysis","Current Business","Q2 FY26","PDF"]];
-const individualReports=[["Personal Finance Summary","Personal Finance","My Workspace","Sep 2026","PDF"],["Asset & Liability Overview","Asset Management","My Workspace","FY 2025-26","XLSX"],["Tax / ITR Summary","Tax","My Workspace","AY 2026-27","PDF"]];
+function WorkspaceReport() {
+  const { user } = useAuth();
+  const pro = user?.role === "Professional User";
+  const { data, error, loading, reload } = useAsync(async () => {
+    const [projects, tasks, compliance] = await Promise.all([
+      api.get<Project[]>("/projects"),
+      api.get<Task[]>("/tasks"),
+      pro ? api.get<ComplianceItem[]>("/compliance") : Promise.resolve([] as ComplianceItem[]),
+    ]);
+    return { projects, tasks, compliance };
+  });
+  if (loading && !data) return <Spinner />;
+  if (!data) return <ErrorBox message={error} onRetry={reload} />;
+  const open = data.tasks.filter((t) => t.status !== "Completed");
+  return (
+    <>
+      <h2>Projects ({data.projects.length})</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>Project</th>
+            <th>Client</th>
+            <th>Type</th>
+            <th>Status</th>
+            <th>Due</th>
+          </tr>
+        </thead>
+        <tbody>
+          {data.projects.map((p) => (
+            <tr key={p.id}>
+              <td>{p.name}</td>
+              <td>{p.clientName || "—"}</td>
+              <td>{p.type}</td>
+              <td>{p.status}</td>
+              <td>{formatDate(p.endDate)}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      <h2>Open tasks ({open.length})</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>Task</th>
+            <th>Project</th>
+            <th>Assignee</th>
+            <th>Priority</th>
+            <th>Due</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          {open.map((t) => (
+            <tr key={t.id}>
+              <td>{t.title}</td>
+              <td>{t.project || "—"}</td>
+              <td>{t.assignee}</td>
+              <td>{t.priority}</td>
+              <td>{formatDate(t.due)}</td>
+              <td>{t.status}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      {pro && (
+        <>
+          <h2>Compliance deadlines</h2>
+          <table>
+            <thead>
+              <tr>
+                <th>Deadline</th>
+                <th>Client</th>
+                <th>Category</th>
+                <th>Due</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              {data.compliance
+                .filter((c) => c.status !== "Completed")
+                .map((c) => (
+                  <tr key={c.id}>
+                    <td>{c.title}</td>
+                    <td>{c.client || "—"}</td>
+                    <td>{c.category}</td>
+                    <td>{formatDate(c.dueDate)}</td>
+                    <td>{c.status}</td>
+                  </tr>
+                ))}
+            </tbody>
+          </table>
+        </>
+      )}
+    </>
+  );
+}
 
-function ReportCard({row}:{row:string[]}){const [title,kind,scope,period,format]=row;return <div className="report-card"><div className="report-icon">{format==="XLSX"?<FileSpreadsheet size={20}/>:format==="PPTX"?<Presentation size={20}/>:format==="DOCX"?<FileText size={20}/>:<FileBarChart size={20}/>}</div><div className="report-meta"><Badge tone="info">{kind}</Badge><span>{period}</span></div><h3>{title}</h3><p>{scope} · Executive summary, financial metrics, evidence, assumptions and reviewer notes.</p><div className="report-footer"><Button variant="secondary">Review</Button><span>{format}</span></div></div>}
+function PersonalReport() {
+  const { data, error, loading, reload } = useAsync(async () => {
+    const [assets, returns] = await Promise.all([api.get<IndividualAsset[]>("/individual/assets"), api.get<ItrReturn[]>("/individual/itr")]);
+    return { assets, returns };
+  });
+  if (loading && !data) return <Spinner />;
+  if (!data) return <ErrorBox message={error} onRetry={reload} />;
+  const liab = data.assets.filter((a) => a.category === "Liability").reduce((s, a) => s + a.value, 0);
+  const total = data.assets.filter((a) => a.category !== "Liability").reduce((s, a) => s + a.value, 0);
+  return (
+    <>
+      <h2>Assets & liabilities</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>Record</th>
+            <th>Category</th>
+            <th>Institution</th>
+            <th>As of</th>
+            <th>Value</th>
+          </tr>
+        </thead>
+        <tbody>
+          {data.assets.map((a) => (
+            <tr key={a.id}>
+              <td>{a.name}</td>
+              <td>{a.category}</td>
+              <td>{a.institution || "—"}</td>
+              <td>{formatDate(a.asOf)}</td>
+              <td>{a.category === "Liability" ? `−${formatINR(a.value)}` : formatINR(a.value)}</td>
+            </tr>
+          ))}
+          <tr>
+            <td colSpan={4}>
+              <strong>Net worth</strong>
+            </td>
+            <td>
+              <strong>{formatINR(total - liab)}</strong>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+      <h2>Income-tax returns</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>Assessment year</th>
+            <th>Form</th>
+            <th>Status</th>
+            <th>Gross total income</th>
+            <th>Updated</th>
+          </tr>
+        </thead>
+        <tbody>
+          {data.returns.map((r) => (
+            <tr key={r.id}>
+              <td>{r.assessmentYear}</td>
+              <td>{r.itrType}</td>
+              <td>{r.status.replace(/_/g, " ")}</td>
+              <td>{r.validation?.totals ? formatINR(r.validation.totals.grossTotalIncome) : "Not checked"}</td>
+              <td>{formatDateTime(r.updatedAt)}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </>
+  );
+}
 
-export default function Reports(){
- const {user}=useAuth();
- const isProfessional=user?.role==="Professional User", isFinance=user?.role==="Finance User";
- const reports=isProfessional?professionalReports:isFinance?financeReports:individualReports;
- return <><PageHeader eyebrow="REPORTING" title={isProfessional?"Professional Reports":isFinance?"Business Reports":"My Financial Reports"} description={isProfessional?"Generate client- and project-specific reports with an auditable review trail.":isFinance?"Generate reports for your own business performance, tax and cash flow.":"Generate private reports for your personal income, assets, liabilities and tax records."} action={<Button><Sparkles size={16}/> New report</Button>}/>
- {isProfessional&&<div className="panel"><div className="panel-head"><div><h2>Professional report context</h2><p>Every report is tied to a client, project and financial year before generation.</p></div></div><div className="builder-strip"><span>1. Select client</span><span>2. Select project</span><span>3. Select financial year</span><span>4. Select report type</span><span>5. Generate → Review → Download</span></div></div>}
- <div className="report-grid">{reports.map((row)=><ReportCard key={row[0]} row={row}/>)}</div>
- <div className="panel"><div className="panel-head"><div><h2>{isProfessional?"Client & project report builder":isFinance?"Business report builder":"Personal report builder"}</h2><p>{isProfessional?"Use approved documents and AI analysis for the selected client/project.":isFinance?"Use your business data to create recurring management reports.":"Use your personal finance data to create private summaries."}</p></div><Button>Create report</Button></div><div className="builder-strip">{isProfessional?<><span>Client</span><span>Project</span><span>Financial Year</span><span>Report Type</span><span>Export PDF / Excel</span></>:isFinance?<><span>Period</span><span>Business data</span><span>Report type</span><span>AI analysis</span><span>Export</span></>:<><span>Period</span><span>Income & expenses</span><span>Assets</span><span>Tax</span><span>Export</span></>}</div></div></>;
+export default function Reports() {
+  const { user } = useAuth();
+  const individual = user?.role === "Individual";
+  return (
+    <>
+      <PageHeader
+        eyebrow="REPORTING"
+        title={individual ? "Personal Summary" : "Workspace Report"}
+        description="A live summary of your data. Print or save it as PDF from your browser."
+        action={
+          <Button variant="secondary" onClick={() => window.print()}>
+            <Printer size={15} /> Print / Save PDF
+          </Button>
+        }
+      />
+      <div className="report-sheet">
+        <div className="eyebrow">{user?.organizationName}</div>
+        <h1 style={{ margin: "4px 0 2px", fontFamily: "Space Grotesk" }}>{individual ? "Personal finance summary" : "Workspace status report"}</h1>
+        <p className="muted">
+          Prepared for {user?.name} on {formatDateTime(new Date().toISOString())}
+        </p>
+        {individual ? <PersonalReport /> : <WorkspaceReport />}
+        <p className="muted" style={{ marginTop: 24 }}>
+          Generated from data recorded in Finpro AI. Verify against source documents before relying on it.
+        </p>
+      </div>
+    </>
+  );
 }

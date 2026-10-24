@@ -1,5 +1,30 @@
 {
-  "name":"finotech-ai-local-api","private":true,"version":"1.1.0","type":"module",
-  "scripts":{"dev":"node --watch index.mjs","dev:individual":"node --watch individual-api.mjs","start":"node index.mjs","start:individual":"node individual-api.mjs"},
-  "dependencies":{"better-sqlite3":"^11.10.0","cors":"^2.8.5","express":"^5.1.0"}
+  "name": "finpro-api",
+  "private": true,
+  "version": "2.0.0",
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "dev": "node --env-file-if-exists=../.env --watch src/server.mjs",
+    "start": "node src/server.mjs",
+    "migrate": "node src/db/migrate-cli.mjs",
+    "seed:demo": "node src/db/seed-cli.mjs",
+    "test": "node --test --test-concurrency=1 \"test/**/*.test.mjs\""
+  },
+  "dependencies": {
+    "better-sqlite3": "^12.4.1",
+    "cookie-parser": "^1.4.7",
+    "express": "^5.1.0",
+    "express-rate-limit": "^8.1.0",
+    "helmet": "^8.1.0",
+    "multer": "^2.0.2",
+    "pino": "^10.0.0",
+    "pino-http": "^11.0.0",
+    "zod": "^4.1.12"
+  },
+  "devDependencies": {
+    "supertest": "^7.1.4"
+  }
 }

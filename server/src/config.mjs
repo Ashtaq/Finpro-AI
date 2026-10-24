@@ -1,0 +1,109 @@
+import path from "node:path";
+import { z } from "zod";
+
+const bool = (fallback) =>
+  z
+    .enum(["true", "false", "1", "0"])
+    .optional()
+    .transform((v) => (v === undefined ? fallback : v === "true" || v === "1"));
+
+const schema = z.object({
+  NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
+  HOST: z.string().default("127.0.0.1"),
+  PORT: z.coerce.number().int().positive().default(8787),
+  LOG_LEVEL: z.enum(["fatal", "error", "warn", "info", "debug", "trace", "silent"]).default("info"),
+
+  // Public origin(s) of the web app, comma separated. Used for CSRF origin checks,
+  // CORS (only when the SPA is hosted on a different origin) and redirects.
+  APP_ORIGIN: z.string().default("http://localhost:5173"),
+  CORS_ORIGINS: z.string().optional(),
+  TRUST_PROXY: z.string().default("false"),
+
+  DATA_DIR: z.string().default(path.resolve(process.cwd(), "data")),
+  UPLOAD_DIR: z.string().optional(),
+  STATIC_DIR: z.string().optional(),
+  MAX_UPLOAD_MB: z.coerce.number().positive().max(200).default(25),
+
+  SESSION_TTL_HOURS: z.coerce
+    .number()
+    .positive()
+    .max(24 * 30)
+    .default(12),
+  COOKIE_SECURE: bool(false),
+
+  SEED_DEMO: bool(false),
+
+  AI_PROVIDER: z.enum(["none", "anthropic"]).default("none"),
+  ANTHROPIC_API_KEY: z.string().optional(),
+  AI_MODEL: z.string().default("claude-sonnet-5-5"),
+  AI_MAX_TOKENS: z.coerce.number().int().positive().max(8192).default(1500),
+
+  KYC_MODE: z.enum(["disabled", "mock", "digilocker"]).default("disabled"),
+  DIGILOCKER_CLIENT_ID: z.string().optional(),
+  DIGILOCKER_CLIENT_SECRET: z.string().optional(),
+  DIGILOCKER_REDIRECT_URI: z.string().optional(),
+
+  ITR_PROVIDER: z.enum(["none"]).default("none"),
+});
+
+export function loadConfig(env = process.env) {
+  const parsed = schema.safeParse(env);
+  if (!parsed.success) {
+    const issues = parsed.error.issues.map((i) => `${i.path.join(".")}: ${i.message}`).join("; ");
+    throw new Error(`Invalid configuration: ${issues}`);
+  }
+  const c = parsed.data;
+  const isProd = c.NODE_ENV === "production";
+  const appOrigins = c.APP_ORIGIN.split(",")
+    .map((s) => s.trim().replace(/\/$/, ""))
+    .filter(Boolean);
+
+  const problems = [];
+  if (isProd) {
+    if (appOrigins.some((o) => o.startsWith("http://") && !o.includes("localhost"))) problems.push("APP_ORIGIN must use https in production");
+    if (!c.COOKIE_SECURE && appOrigins.every((o) => o.startsWith("https://"))) c.COOKIE_SECURE = true;
+    if (c.SEED_DEMO) problems.push("SEED_DEMO must not be enabled in production");
+    if (c.KYC_MODE === "mock") problems.push("KYC_MODE=mock is not allowed in production");
+  }
+  if (c.AI_PROVIDER === "anthropic" && !c.ANTHROPIC_API_KEY) problems.push("ANTHROPIC_API_KEY is required when AI_PROVIDER=anthropic");
+  if (c.KYC_MODE === "digilocker" && !(c.DIGILOCKER_CLIENT_ID && c.DIGILOCKER_CLIENT_SECRET && c.DIGILOCKER_REDIRECT_URI))
+    problems.push("DIGILOCKER_CLIENT_ID, DIGILOCKER_CLIENT_SECRET and DIGILOCKER_REDIRECT_URI are required when KYC_MODE=digilocker");
+  if (problems.length) throw new Error(`Invalid configuration: ${problems.join("; ")}`);
+
+  let trustProxy = c.TRUST_PROXY;
+  if (trustProxy === "true") trustProxy = true;
+  else if (trustProxy === "false") trustProxy = false;
+  else if (/^\d+$/.test(trustProxy)) trustProxy = Number(trustProxy);
+
+  return {
+    env: c.NODE_ENV,
+    isProd,
+    isTest: c.NODE_ENV === "test",
+    host: c.HOST,
+    port: c.PORT,
+    logLevel: c.NODE_ENV === "test" ? "silent" : c.LOG_LEVEL,
+    appOrigins,
+    appUrl: appOrigins[0],
+    corsOrigins: c.CORS_ORIGINS
+      ? c.CORS_ORIGINS.split(",")
+          .map((s) => s.trim())
+          .filter(Boolean)
+      : [],
+    trustProxy,
+    dataDir: c.DATA_DIR,
+    uploadDir: c.UPLOAD_DIR || path.join(c.DATA_DIR, "uploads"),
+    staticDir: c.STATIC_DIR,
+    maxUploadBytes: Math.round(c.MAX_UPLOAD_MB * 1024 * 1024),
+    sessionTtlMs: c.SESSION_TTL_HOURS * 3600 * 1000,
+    cookieSecure: c.COOKIE_SECURE,
+    seedDemo: c.SEED_DEMO,
+    ai: { provider: c.AI_PROVIDER, apiKey: c.ANTHROPIC_API_KEY, model: c.AI_MODEL, maxTokens: c.AI_MAX_TOKENS },
+    kyc: {
+      mode: c.KYC_MODE,
+      clientId: c.DIGILOCKER_CLIENT_ID,
+      clientSecret: c.DIGILOCKER_CLIENT_SECRET,
+      redirectUri: c.DIGILOCKER_REDIRECT_URI,
+    },
+    itr: { provider: c.ITR_PROVIDER },
+  };
+}

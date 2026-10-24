@@ -1,5 +1,17 @@
 node_modules
 dist
+coverage
 .env
 .env.*
+!.env.example
 .DS_Store
+*.log
+
+# Local data — never commit databases or uploaded client files
+data/
+server/data/
+server/uploads/
+*.db
+*.db-shm
+*.db-wal
+*.tsbuildinfo

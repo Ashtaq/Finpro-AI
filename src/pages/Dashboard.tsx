@@ -1,22 +1,159 @@
-import { useEffect, useState } from "react";
-import { Activity, BrainCircuit, CalendarDays, FileCheck2, FileText, FolderOpen, Users, WalletCards } from "lucide-react";
-import { ResponsiveContainer, AreaChart, Area, CartesianGrid, XAxis, YAxis, Tooltip, BarChart, Bar } from "recharts";
-import { MetricCard, PageHeader, Badge, Button } from "../components/ui";
+import { Link } from "react-router-dom";
+import { Activity, BrainCircuit, CalendarDays, FileText, FolderOpen, Users } from "lucide-react";
+import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { Badge, EmptyState, ErrorBox, MetricCard, Notice, PageHeader, Spinner } from "../components/ui";
 import { useAuth } from "../context/AuthContext";
-import { fetchDashboard } from "../services/mockApi";
-import { projects, clients, documents, tasks, compliance } from "../data/mockData";
+import { api } from "../lib/api";
+import { formatDate, monthLabel } from "../lib/format";
+import { useAsync } from "../lib/useAsync";
+import { DashboardData } from "../types";
 
-const activity = [{month:"Apr",value:38},{month:"May",value:52},{month:"Jun",value:61},{month:"Jul",value:69},{month:"Aug",value:78},{month:"Sep",value:94}];
-const agentData = [{name:"Finance",value:44},{name:"Tax",value:18},{name:"Audit",value:12},{name:"Excel",value:15},{name:"Docs",value:11}];
+const greeting = () => {
+  const h = new Date().getHours();
+  return h < 12 ? "Good morning" : h < 17 ? "Good afternoon" : "Good evening";
+};
 
-export default function Dashboard(){
- const {user}=useAuth(); const [stats,setStats]=useState<any>(null);
- useEffect(()=>{fetchDashboard(user!.role).then(setStats)},[user]);
- return <><PageHeader eyebrow="OVERVIEW" title={`Good evening, ${user?.name.split(" ")[0]}.`} description="A focused view of projects, documents, AI activity and upcoming work." action={<Button variant="secondary">Export dashboard</Button>}/>
- <div className="metric-grid">{[[ "Total Clients",stats?.clients??"—",<Users size={18}/>,"+8% vs last month"],["Active Projects",stats?.activeProjects??"—",<FolderOpen size={18}/>,"6 due this week"],["Documents",stats?.documents??"—",<FileText size={18}/>,"12 processing"],["AI Analyses",stats?.aiAnalyses??"—",<BrainCircuit size={18}/>,"+18% usage"],["Reports Generated",stats?.reports??"—",<FileCheck2 size={18}/>,"9 this week"],["Pending Tasks",stats?.pendingTasks??"—",<Activity size={18}/>,"3 high priority"],["Upcoming Deadlines",stats?.upcomingDeadlines??"—",<CalendarDays size={18}/>,"1 overdue"],["AI Usage",stats?.aiUsage??"—",<WalletCards size={18}/>,"this billing cycle"]].map(([l,v,i,d])=><MetricCard key={String(l)} label={String(l)} value={v as any} icon={i} delta={String(d)}/>)}</div>
- <div className="grid-2"><div className="panel"><div className="panel-head"><div><h2>Workspace activity</h2><p>Project and AI workflow activity</p></div><Badge tone="success">Live demo</Badge></div><div className="chart-box"><ResponsiveContainer width="100%" height="100%"><AreaChart data={activity}><CartesianGrid vertical={false}/><XAxis dataKey="month"/><YAxis/><Tooltip/><Area type="monotone" dataKey="value" fill="rgba(55,132,255,.15)" stroke="#3784ff" strokeWidth={2}/></AreaChart></ResponsiveContainer></div></div>
- <div className="panel"><div className="panel-head"><div><h2>Agent usage</h2><p>Distribution of AI requests</p></div></div><div className="chart-box"><ResponsiveContainer width="100%" height="100%"><BarChart data={agentData} layout="vertical"><CartesianGrid horizontal={false}/><XAxis type="number"/><YAxis dataKey="name" type="category"/><Tooltip/><Bar dataKey="value" fill="#16233f" radius={[0,5,5,0]}/></BarChart></ResponsiveContainer></div></div></div>
- <div className="grid-3"><div className="panel"><div className="panel-head"><h2>Recent projects</h2></div>{projects.slice(0,4).map(p=><div className="list-row" key={p.id}><div><strong>{p.name}</strong><span>{p.clientName}</span></div><Badge tone={p.status==="Active"?"success":"warning"}>{p.status}</Badge></div>)}</div><div className="panel"><div className="panel-head"><h2>Recent clients</h2></div>{clients.slice(0,4).map(c=><div className="list-row" key={c.id}><div><strong>{c.company}</strong><span>{c.industry}</span></div><Badge>{c.status}</Badge></div>)}</div><div className="panel"><div className="panel-head"><h2>Upcoming work</h2></div>{tasks.slice(0,3).map(t=><div className="list-row" key={t.id}><div><strong>{t.title}</strong><span>{t.assignee} · due {t.due}</span></div><Badge tone={t.priority==="High"?"danger":t.priority==="Medium"?"warning":"default"}>{t.priority}</Badge></div>)}<div className="list-row"><div><strong>Compliance calendar</strong><span>{compliance.filter(c=>c.status!=="Overdue").length} upcoming items</span></div><CalendarDays size={16}/></div></div></div>
- <div className="notice"><div><strong>Professional review required</strong><span>AI output is assistive analysis. Validate calculations, assumptions, source references and regulatory interpretations before client delivery or decision use.</span></div><Badge tone="info">Evidence-first AI</Badge></div>
- </>;
+export default function Dashboard() {
+  const { user } = useAuth();
+  const { data, error, loading, reload } = useAsync(() => api.get<DashboardData>("/dashboard"));
+  const pro = user?.role === "Professional User";
+  const m = data?.metrics;
+
+  return (
+    <>
+      <PageHeader
+        eyebrow="OVERVIEW"
+        title={`${greeting()}, ${user?.name.split(" ")[0]}.`}
+        description="Projects, documents, AI activity and upcoming work for your workspace."
+      />
+      <ErrorBox message={error} onRetry={reload} />
+      {loading && !data ? (
+        <Spinner />
+      ) : m ? (
+        <>
+          <div className="metric-grid">
+            {pro && <MetricCard label="Clients" value={m.clients} icon={<Users size={18} />} />}
+            <MetricCard label="Active projects" value={m.activeProjects} icon={<FolderOpen size={18} />} />
+            <MetricCard label="Documents" value={m.documents} icon={<FileText size={18} />} />
+            <MetricCard label="AI analyses" value={m.aiAnalyses} icon={<BrainCircuit size={18} />} />
+            <MetricCard
+              label="Open tasks"
+              value={m.pendingTasks}
+              icon={<Activity size={18} />}
+              delta={m.highPriorityTasks ? `${m.highPriorityTasks} high priority` : undefined}
+            />
+            {pro && (
+              <MetricCard
+                label="Deadlines"
+                value={m.upcomingDeadlines}
+                icon={<CalendarDays size={18} />}
+                delta={m.overdueDeadlines ? `${m.overdueDeadlines} overdue` : "none overdue"}
+              />
+            )}
+          </div>
+          <div className="grid-2">
+            <div className="panel">
+              <div className="panel-head">
+                <div>
+                  <h2>Workspace activity</h2>
+                  <p>Audited events over the last six months</p>
+                </div>
+              </div>
+              <div className="chart-box">
+                <ResponsiveContainer width="100%" height="100%">
+                  <AreaChart data={data!.activity.map((p) => ({ month: monthLabel(p.month), value: p.value }))}>
+                    <CartesianGrid vertical={false} stroke="#edf1f6" />
+                    <XAxis dataKey="month" tickLine={false} axisLine={false} />
+                    <YAxis allowDecimals={false} tickLine={false} axisLine={false} width={32} />
+                    <Tooltip />
+                    <Area type="monotone" dataKey="value" name="Events" fill="rgba(55,132,255,.15)" stroke="#3784ff" strokeWidth={2} />
+                  </AreaChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+            <div className="panel">
+              <div className="panel-head">
+                <h2>Upcoming work</h2>
+                <Link className="text-link" to="/tasks">
+                  All tasks
+                </Link>
+              </div>
+              {data!.upcomingTasks.length ? (
+                data!.upcomingTasks.map((t) => (
+                  <div className="list-row" key={t.id}>
+                    <div>
+                      <strong>{t.title}</strong>
+                      <span>
+                        {t.assignee} · {t.due ? `due ${formatDate(t.due)}` : "no due date"}
+                      </span>
+                    </div>
+                    <Badge tone={t.priority === "High" ? "danger" : t.priority === "Medium" ? "warning" : "default"}>{t.priority}</Badge>
+                  </div>
+                ))
+              ) : (
+                <p className="muted">No open tasks.</p>
+              )}
+            </div>
+          </div>
+          <div className={pro ? "grid-2" : ""}>
+            <div className="panel">
+              <div className="panel-head">
+                <h2>Recent projects</h2>
+                <Link className="text-link" to="/projects">
+                  All projects
+                </Link>
+              </div>
+              {data!.recentProjects.length ? (
+                data!.recentProjects.map((p) => (
+                  <Link to={`/projects/${p.id}`} className="list-row" key={p.id}>
+                    <div>
+                      <strong>{p.name}</strong>
+                      <span>{p.clientName || p.type}</span>
+                    </div>
+                    <Badge tone={p.status === "Active" ? "success" : "warning"}>{p.status}</Badge>
+                  </Link>
+                ))
+              ) : (
+                <EmptyState
+                  title="No projects yet"
+                  description="Create a project to organize documents, tasks and AI conversations."
+                  action={
+                    <Link className="btn btn-primary" to="/projects">
+                      Create project
+                    </Link>
+                  }
+                />
+              )}
+            </div>
+            {pro && (
+              <div className="panel">
+                <div className="panel-head">
+                  <h2>Recent clients</h2>
+                  <Link className="text-link" to="/clients">
+                    All clients
+                  </Link>
+                </div>
+                {data!.recentClients.length ? (
+                  data!.recentClients.map((c) => (
+                    <div className="list-row" key={c.id}>
+                      <div>
+                        <strong>{c.company}</strong>
+                        <span>{c.industry}</span>
+                      </div>
+                      <Badge>{c.status}</Badge>
+                    </div>
+                  ))
+                ) : (
+                  <p className="muted">No clients yet.</p>
+                )}
+              </div>
+            )}
+          </div>
+          <Notice title="Professional review required">
+            AI output is assistive. Validate calculations, assumptions, sources and regulatory interpretations before client delivery or decisions.
+          </Notice>
+        </>
+      ) : null}
+    </>
+  );
 }

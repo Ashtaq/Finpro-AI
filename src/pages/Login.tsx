@@ -1,17 +1,117 @@
-import { FormEvent,useState } from "react";
-import { Link,useNavigate } from "react-router-dom";
-import { ShieldCheck,Sparkles } from "lucide-react";
-import { useAuth,DEMO_ACCOUNTS } from "../context/AuthContext";
-import { Role } from "../types";
-export default function Login(){
- const navigate=useNavigate();const {login}=useAuth();const [role,setRole]=useState<Role>("Professional User");const [email,setEmail]=useState("professional@finotech.demo");const [password,setPassword]=useState("demo123");const [show,setShow]=useState(false);const [error,setError]=useState("");
- const submit=async(e:FormEvent)=>{e.preventDefault();setError("");try{await login(email,password,role);navigate(role==="Individual"?"/individual":"/");}catch(err){setError(err instanceof Error?err.message:"Login failed");}};
- const pickDemo=(selected:Role)=>{setRole(selected);const account=DEMO_ACCOUNTS.find(a=>a.role===selected);if(account)setEmail(account.email);if(selected==="Individual"){setEmail("individual@finotech.demo");setPassword("demo123");}};
- return <div className="auth-shell"><div className="auth-brand"><div className="brand-mark large"><Sparkles size={22}/></div><div><div className="brand-name">FINOTECH</div><div className="brand-sub">AI FINANCE OS</div></div></div><div className="auth-card">
- <div className="auth-icon"><ShieldCheck size={23}/></div><div className="eyebrow">SECURE WORKSPACE</div><h1>Sign in to Finotech AI</h1><p className="auth-muted">Choose the workspace that matches how you use Finpro.</p>
- <form onSubmit={submit} className="form-stack"><label>Email<input value={email} onChange={e=>setEmail(e.target.value)} type="email" required/></label><label>Password<div className="password-wrap"><input value={password} onChange={e=>setPassword(e.target.value)} type={show?"text":"password"} required/><button type="button" onClick={()=>setShow(!show)}>{show?"Hide":"Show"}</button></div></label>
- <div className="role-picker">{(["Individual","Finance User","Professional User"] as Role[]).map(r=><button type="button" key={r} className={role===r?"role-chip selected":"role-chip"} onClick={()=>pickDemo(r)}>{r}</button>)}</div>
- {error&&<div className="error-box">{error}</div>}<button className="btn btn-primary wide" type="submit">Sign in</button></form>
- <div className="auth-divider">or</div><Link to="/signup" className="btn btn-secondary wide">Create an account</Link>
- <div className="demo-note"><strong>Demo:</strong> Use the role selector to load the corresponding demo account.</div></div><div className="auth-footer">Personal finance, small-business finance and professional advisory workflows in one platform.</div></div>;
+import { FormEvent, useEffect, useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
+import { ShieldCheck, Sparkles } from "lucide-react";
+import { ErrorBox } from "../components/ui";
+import { homePath, useAuth } from "../context/AuthContext";
+import { errorMessage } from "../lib/api";
+
+const DEMO = [
+  ["Professional User", "professional@finpro.demo"],
+  ["Finance User", "finance@finpro.demo"],
+  ["Individual", "individual@finpro.demo"],
+];
+
+export function AuthBrand() {
+  return (
+    <div className="auth-brand">
+      <div className="brand-mark large">
+        <Sparkles size={22} />
+      </div>
+      <div>
+        <div className="brand-name">FINPRO AI</div>
+        <div className="brand-sub">FINANCE WORKSPACE</div>
+      </div>
+    </div>
+  );
+}
+
+export default function Login() {
+  const navigate = useNavigate();
+  const { login, meta } = useAuth();
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [show, setShow] = useState(false);
+  const [error, setError] = useState("");
+  const [busy, setBusy] = useState(false);
+  useEffect(() => {
+    document.title = "Sign in · Finpro AI";
+  }, []);
+
+  const submit = async (e: FormEvent) => {
+    e.preventDefault();
+    setError("");
+    setBusy(true);
+    try {
+      const user = await login(email, password);
+      navigate(homePath(user.role), { replace: true });
+    } catch (err) {
+      setError(errorMessage(err, "Sign in failed."));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div className="auth-shell">
+      <AuthBrand />
+      <div className="auth-card">
+        <div className="auth-icon">
+          <ShieldCheck size={23} />
+        </div>
+        <div className="eyebrow">SECURE WORKSPACE</div>
+        <h1>Sign in to Finpro AI</h1>
+        <p className="auth-muted">Your account type decides the workspace you see.</p>
+        <form onSubmit={submit} className="form-stack">
+          <label>
+            Email
+            <input value={email} onChange={(e) => setEmail(e.target.value)} type="email" autoComplete="email" required autoFocus />
+          </label>
+          <label>
+            Password
+            <div className="password-wrap">
+              <input
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                type={show ? "text" : "password"}
+                autoComplete="current-password"
+                required
+              />
+              <button type="button" onClick={() => setShow(!show)} aria-label={show ? "Hide password" : "Show password"}>
+                {show ? "Hide" : "Show"}
+              </button>
+            </div>
+          </label>
+          <ErrorBox message={error} />
+          <button className="btn btn-primary wide" type="submit" disabled={busy}>
+            {busy ? "Signing in…" : "Sign in"}
+          </button>
+        </form>
+        <div className="auth-divider">or</div>
+        <Link to="/signup" className="btn btn-secondary wide">
+          Create an account
+        </Link>
+        {meta?.demo && (
+          <div className="demo-note">
+            <strong>Demo environment.</strong> Password for all demo accounts: <code>Demo@Finpro2026</code>
+            <div className="role-picker" style={{ marginTop: 8 }}>
+              {DEMO.map(([role, demoEmail]) => (
+                <button
+                  type="button"
+                  key={role}
+                  className={email === demoEmail ? "role-chip selected" : "role-chip"}
+                  onClick={() => {
+                    setEmail(demoEmail);
+                    setPassword("Demo@Finpro2026");
+                  }}
+                >
+                  {role}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+      <div className="auth-footer">Personal finance, small-business finance and professional advisory workflows in one platform.</div>
+    </div>
+  );
 }

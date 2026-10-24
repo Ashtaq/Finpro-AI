@@ -1,14 +1,182 @@
-import { useMemo, useState } from "react";
-import { useParams, Link } from "react-router-dom";
-import { ArrowLeft, FileText, MessageSquareText, BarChart3, ListTodo, Users, Activity, UploadCloud, Sparkles } from "lucide-react";
-import { projects, documents, tasks } from "../data/mockData";
-import { Badge, Button, PageHeader } from "../components/ui";
+import { useState } from "react";
+import { Link, useParams } from "react-router-dom";
+import { Activity, ArrowLeft, BarChart3, FileText, ListTodo, MessageSquareText } from "lucide-react";
+import { DocumentTable, UploadButton } from "../components/documents";
+import { Badge, EmptyState, ErrorBox, PageHeader, Spinner } from "../components/ui";
+import { api } from "../lib/api";
+import { formatDate, formatDateTime } from "../lib/format";
+import { useAsync } from "../lib/useAsync";
+import { DocumentRecord, Project, Task } from "../types";
 
-export default function ProjectWorkspace(){const {projectId}=useParams();const p=projects.find(x=>x.id===projectId)||projects[0];const [tab,setTab]=useState("Overview");const tabs=["Overview","AI Chat","Documents","Financial Data","Analysis","Reports","Tasks","Team","Activity"];const docs=documents.filter(d=>d.projectId===p.id);const workTasks=tasks.filter(t=>t.project===p.name);const navIcons:Record<string,any>={Overview:BarChart3,"AI Chat":MessageSquareText,Documents:FileText,"Financial Data":BarChart3,Analysis:Sparkles,Reports:FileText,Tasks:ListTodo,Team:Users,Activity:Activity};
-return <><div className="breadcrumb"><Link to="/projects"><ArrowLeft size={15}/> Projects</Link><span>/</span><span>{p.name}</span></div><PageHeader eyebrow={p.clientName} title={p.name} description={`${p.type} · ${p.fy} · ${p.currency} · ${p.startDate} → ${p.endDate}`} action={<><Button variant="secondary">Project settings</Button><Button><UploadCloud size={15}/> Upload files</Button></>}/><div className="workspace-tabs">{tabs.map(t=>{const I=navIcons[t];return <button key={t} className={tab===t?"workspace-tab active":"workspace-tab"} onClick={()=>setTab(t)}><I size={15}/>{t}</button>})}</div>
-{tab==="Overview"&&<div className="grid-3"><div className="panel span-2"><div className="panel-head"><div><h2>Project pulse</h2><p>Live working summary</p></div><Badge tone="success">Isolated workspace</Badge></div><div className="analysis-cards"><div><span>Documents</span><strong>{docs.length}</strong></div><div><span>Open tasks</span><strong>{workTasks.filter(t=>t.status!=="Completed").length}</strong></div><div><span>AI analyses</span><strong>28</strong></div><div><span>Reports</span><strong>6</strong></div></div><div className="notice"><div><strong>Project context is active</strong><span>Future AI requests can use only documents and conversations authorized to this project.</span></div></div></div><div className="panel"><div className="panel-head"><h2>Project team</h2></div>{p.team.map(name=><div className="list-row" key={name}><div><strong>{name}</strong><span>Finance specialist</span></div><div className="avatar small">{name.slice(0,1)}</div></div>)}</div></div>}
-{tab==="Documents"&&<div className="table-panel"><table><thead><tr><th>Document</th><th>Type</th><th>Status</th><th>Uploaded by</th><th>Pages</th></tr></thead><tbody>{docs.map(d=><tr key={d.id}><td><strong>{d.name}</strong></td><td>{d.type}</td><td><Badge tone={d.status==="Completed"?"success":d.status==="Failed"?"danger":"warning"}>{d.status}</Badge></td><td>{d.uploadedBy}</td><td>{d.pages??"—"}</td></tr>)}</tbody></table></div>}
-{tab==="Tasks"&&<div className="panel"><div className="panel-head"><h2>Project tasks</h2><Button variant="secondary">Add task</Button></div>{workTasks.map(t=><div className="list-row" key={t.id}><div><strong>{t.title}</strong><span>{t.assignee} · due {t.due}</span></div><Badge>{t.status}</Badge></div>)}</div>}
-{tab==="AI Chat"&&<div className="panel"><div className="ai-empty"><Sparkles size={28}/><h2>Project AI workspace</h2><p>Use the AI Assistant to ask questions with this project selected. Evidence, calculations and limitations stay attached to the response.</p><Link className="btn btn-primary" to={`/ai-assistant?project=${p.id}`}>Open AI Assistant</Link></div></div>}
-{["Financial Data","Analysis","Reports","Team","Activity"].includes(tab)&&<div className="panel"><div className="ai-empty"><Sparkles size={28}/><h2>{tab} workspace</h2><p>This section is wired as a replaceable module boundary. Connect it to the backend service when real data endpoints are available.</p></div></div>}
-</>;}
+interface Detail {
+  project: Project;
+  documents: DocumentRecord[];
+  tasks: Task[];
+  activity: { actor: string; action: string; resource: string; timestamp: string }[];
+  conversations: number;
+}
+
+const TABS = [
+  ["Overview", BarChart3],
+  ["Documents", FileText],
+  ["Tasks", ListTodo],
+  ["Activity", Activity],
+] as const;
+
+export default function ProjectWorkspace() {
+  const { projectId = "" } = useParams();
+  const { data, setData, error, loading, reload } = useAsync(() => api.get<Detail>(`/projects/${projectId}`), [projectId]);
+  const [tab, setTab] = useState<(typeof TABS)[number][0]>("Overview");
+  const [actionError, setActionError] = useState("");
+
+  if (loading && !data) return <Spinner />;
+  if (!data)
+    return (
+      <>
+        <ErrorBox message={error || "Project not found."} onRetry={reload} />
+        <Link to="/projects" className="text-link">
+          Back to projects
+        </Link>
+      </>
+    );
+  const { project: p, documents, tasks, activity } = data;
+  const open = tasks.filter((t) => t.status !== "Completed").length;
+
+  return (
+    <>
+      <div className="breadcrumb">
+        <Link to="/projects">
+          <ArrowLeft size={15} /> Projects
+        </Link>
+        <span>/</span>
+        <span>{p.name}</span>
+      </div>
+      <PageHeader
+        eyebrow={p.clientName || "INTERNAL PROJECT"}
+        title={p.name}
+        description={[p.type, p.fy, p.currency, p.startDate && p.endDate ? `${formatDate(p.startDate)} → ${formatDate(p.endDate)}` : ""]
+          .filter(Boolean)
+          .join(" · ")}
+        action={
+          <>
+            <Link className="btn btn-secondary" to={`/ai-assistant?project=${p.id}`}>
+              <MessageSquareText size={15} /> Ask AI
+            </Link>
+            <UploadButton projectId={p.id} onError={setActionError} onUploaded={(d) => setData({ ...data, documents: [d, ...documents] })} />
+          </>
+        }
+      />
+      <ErrorBox message={actionError} />
+      <div className="workspace-tabs" role="tablist">
+        {TABS.map(([t, Icon]) => (
+          <button key={t} role="tab" aria-selected={tab === t} className={tab === t ? "workspace-tab active" : "workspace-tab"} onClick={() => setTab(t)}>
+            <Icon size={15} />
+            {t}
+          </button>
+        ))}
+      </div>
+      {tab === "Overview" && (
+        <div className="grid-3">
+          <div className="panel span-2">
+            <div className="panel-head">
+              <div>
+                <h2>Project pulse</h2>
+                <p>Live counts for this engagement</p>
+              </div>
+              <Badge tone={p.status === "Active" ? "success" : "default"}>{p.status}</Badge>
+            </div>
+            <div className="analysis-cards">
+              <div>
+                <span>Documents</span>
+                <strong>{documents.length}</strong>
+              </div>
+              <div>
+                <span>Open tasks</span>
+                <strong>{open}</strong>
+              </div>
+              <div>
+                <span>AI conversations</span>
+                <strong>{data.conversations}</strong>
+              </div>
+              <div>
+                <span>Priority</span>
+                <strong>{p.priority}</strong>
+              </div>
+            </div>
+          </div>
+          <div className="panel">
+            <div className="panel-head">
+              <h2>Project team</h2>
+            </div>
+            {p.team.length ? (
+              p.team.map((name) => (
+                <div className="list-row" key={name}>
+                  <div>
+                    <strong>{name}</strong>
+                  </div>
+                  <div className="avatar small">{name.slice(0, 1)}</div>
+                </div>
+              ))
+            ) : (
+              <p className="muted">No team members listed.</p>
+            )}
+          </div>
+        </div>
+      )}
+      {tab === "Documents" && (
+        <div className="table-panel">
+          <DocumentTable
+            rows={documents}
+            showProject={false}
+            onError={setActionError}
+            onDeleted={(id) => setData({ ...data, documents: documents.filter((d) => d.id !== id) })}
+          />
+        </div>
+      )}
+      {tab === "Tasks" && (
+        <div className="panel">
+          <div className="panel-head">
+            <h2>Project tasks</h2>
+            <Link className="text-link" to="/tasks">
+              Open board
+            </Link>
+          </div>
+          {tasks.length ? (
+            tasks.map((t) => (
+              <div className="list-row" key={t.id}>
+                <div>
+                  <strong>{t.title}</strong>
+                  <span>
+                    {t.assignee} · {t.due ? `due ${formatDate(t.due)}` : "no due date"}
+                  </span>
+                </div>
+                <Badge tone={t.status === "Completed" ? "success" : "default"}>{t.status}</Badge>
+              </div>
+            ))
+          ) : (
+            <EmptyState title="No tasks" description="Add tasks for this project from the task board." />
+          )}
+        </div>
+      )}
+      {tab === "Activity" && (
+        <div className="panel">
+          {activity.length ? (
+            activity.map((a, i) => (
+              <div className="list-row" key={i}>
+                <div>
+                  <strong>{a.action}</strong>
+                  <span>
+                    {a.actor} · {a.resource}
+                  </span>
+                </div>
+                <span className="muted">{formatDateTime(a.timestamp)}</span>
+              </div>
+            ))
+          ) : (
+            <p className="muted">No activity recorded yet.</p>
+          )}
+        </div>
+      )}
+    </>
+  );
+}
