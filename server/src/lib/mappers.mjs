@@ -20,6 +20,7 @@ export const toUser = (r) => ({
   active: Boolean(r.active),
   createdAt: r.created_at,
   lastLoginAt: r.last_login_at || undefined,
+  kycStatus: r.role === "Individual" ? r.kyc_status || "NOT_STARTED" : undefined,
 });
 
 export const toClient = (r) => ({

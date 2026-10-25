@@ -43,6 +43,7 @@ export const createPkceVerifier = () => crypto.randomBytes(48).toString("base64u
 export const pkceChallenge = (verifier) => crypto.createHash("sha256").update(verifier).digest("base64url");
 
 export function createDigiLocker(kyc, fetchImpl = globalThis.fetch) {
+  const URLS = { ...DIGILOCKER_URLS, ...(kyc.urls || {}) };
   async function get(url, token) {
     const response = await fetchImpl(url, {
       headers: { Authorization: `Bearer ${token}`, Accept: "application/json,application/xml,text/xml" },
@@ -59,7 +60,7 @@ export function createDigiLocker(kyc, fetchImpl = globalThis.fetch) {
 
   return {
     authorizationUrl({ state, codeChallenge }) {
-      const url = new URL(DIGILOCKER_URLS.authorize);
+      const url = new URL(URLS.authorize);
       url.searchParams.set("response_type", "code");
       url.searchParams.set("client_id", kyc.clientId);
       url.searchParams.set("redirect_uri", kyc.redirectUri);
@@ -79,7 +80,7 @@ export function createDigiLocker(kyc, fetchImpl = globalThis.fetch) {
         redirect_uri: kyc.redirectUri,
         code_verifier: verifier,
       });
-      const response = await fetchImpl(DIGILOCKER_URLS.token, {
+      const response = await fetchImpl(URLS.token, {
         method: "POST",
         headers: { "Content-Type": "application/x-www-form-urlencoded", Accept: "application/json" },
         body,
@@ -92,18 +93,18 @@ export function createDigiLocker(kyc, fetchImpl = globalThis.fetch) {
 
     /** Verify the DigiLocker identity against the user's claimed name / DOB / PAN. Returns masked data only. */
     async verify(token, claimed) {
-      const user = (await get(DIGILOCKER_URLS.user, token)).data || {};
-      const issued = await get(DIGILOCKER_URLS.issuedDocs, token).catch(() => ({ data: {} }));
+      const user = (await get(URLS.user, token)).data || {};
+      const issued = await get(URLS.issuedDocs, token).catch(() => ({ data: {} }));
       const docs = issued.data?.items || issued.data?.documents || [];
       const panDoc = docs.find((d) => String(d.doctype || d.type || "").toUpperCase() === "PANCR");
       let panXml = "";
       if (panDoc?.uri) {
-        const u = new URL(DIGILOCKER_URLS.docXml);
+        const u = new URL(URLS.docXml);
         u.searchParams.set("uri", panDoc.uri);
         panXml = (await get(u.toString(), token).catch(() => ({ raw: "" }))).raw || "";
       }
       const hasAadhaar = String(user.eaadhaar || "").toUpperCase() === "Y" || docs.some((d) => String(d.doctype || "").toUpperCase() === "ADHAR");
-      const aadhaarXml = hasAadhaar ? (await get(DIGILOCKER_URLS.aadhaarXml, token).catch(() => ({ raw: "" }))).raw || "" : "";
+      const aadhaarXml = hasAadhaar ? (await get(URLS.aadhaarXml, token).catch(() => ({ raw: "" }))).raw || "" : "";
 
       const name = String(user.name || attr(panXml, "Person", "name") || attr(aadhaarXml, "Poi", "name")).trim();
       const dob = normalizeDob(user.dob || attr(panXml, "Person", "dob") || attr(aadhaarXml, "Poi", "dob"));
@@ -114,16 +115,16 @@ export function createDigiLocker(kyc, fetchImpl = globalThis.fetch) {
       const aadhaarDigits = /\b\d{4}\s?\d{4}\s?\d{4}\b/.exec(aadhaarXml)?.[0] || attr(aadhaarXml, "UidData", "uid");
       return {
         verified: Boolean(hasAadhaar && panOk && nameOk && dobOk),
-        reason: !panDoc
-          ? "PAN card not found in DigiLocker"
-          : !hasAadhaar
-            ? "Aadhaar not linked in DigiLocker"
+        reason: !hasAadhaar
+          ? "aadhaar_missing"
+          : !panDoc
+            ? "pan_missing"
             : !panOk
-              ? "PAN mismatch"
+              ? "pan_mismatch"
               : !nameOk
-                ? "Name mismatch"
+                ? "name_mismatch"
                 : !dobOk
-                  ? "Date of birth mismatch"
+                  ? "dob_mismatch"
                   : null,
         aadhaarLast4: last4(aadhaarDigits) || null,
       };

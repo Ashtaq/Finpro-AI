@@ -22,7 +22,10 @@ export async function seedDemo(db) {
     user.run("u-demo-pro", "org-demo", "Aarav Mehta", "professional@finpro.demo", hash, "Professional User", "CA");
     user.run("u-demo-fin", "org-demo", "Riya Sharma", "finance@finpro.demo", hash, "Finance User", "Other");
     user.run("u-demo-ind", "org-demo-personal", "Individual Demo", "individual@finpro.demo", hash, "Individual", "Other");
-    db.prepare("INSERT INTO individual_profiles(user_id, residential_status) VALUES (?, 'Resident')").run("u-demo-ind");
+    // Demo individual is pre-verified so demo logins work when KYC is required (fictional PAN).
+    db.prepare(
+      "INSERT INTO individual_profiles(user_id, residential_status, pan, dob, kyc_status, kyc_provider, kyc_verified_at, aadhaar_last4) VALUES (?, 'Resident', 'DEMPD1234D', '1991-04-01', 'VERIFIED', 'seed', ?, '0000')",
+    ).run("u-demo-ind", new Date().toISOString());
 
     const client = db.prepare(
       "INSERT INTO clients(id, organization_id, name, company, industry, email, phone, fy, status, team, contact_person) VALUES (?,?,?,?,?,?,?,?,?,?,?)",

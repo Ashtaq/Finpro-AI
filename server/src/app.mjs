@@ -15,6 +15,7 @@ import authRoutes from "./routes/auth.mjs";
 import clientRoutes from "./routes/clients.mjs";
 import documentRoutes from "./routes/documents.mjs";
 import individualRoutes from "./routes/individual.mjs";
+import digilockerSandboxRoutes from "./routes/digilocker-sandbox.mjs";
 import kycRoutes from "./routes/kyc.mjs";
 import projectRoutes from "./routes/projects.mjs";
 import taskRoutes from "./routes/tasks.mjs";
@@ -115,7 +116,7 @@ export function createApp({ db, config, logger, ai, storage, digilocker }) {
       version: VERSION,
       demo: config.seedDemo,
       ai: { enabled: ctx.ai.enabled },
-      kyc: { enabled: config.kyc.mode !== "disabled", mode: config.kyc.mode },
+      kyc: { enabled: config.kyc.enabled, required: config.kyc.required, mode: config.kyc.mode },
       itrFiling: { enabled: config.itr.provider !== "none" },
       maxUploadBytes: config.maxUploadBytes,
     }),
@@ -131,6 +132,7 @@ export function createApp({ db, config, logger, ai, storage, digilocker }) {
   api.use("/assistant", assistantRoutes(ctx));
   api.use("/individual", individualRoutes(ctx));
   api.use("/kyc", kycRoutes(ctx));
+  if (config.kyc.mode === "sandbox") api.use("/sandbox/digilocker", digilockerSandboxRoutes(ctx));
   api.use("/", workspaceRoutes(ctx));
   api.use(notFoundHandler);
 

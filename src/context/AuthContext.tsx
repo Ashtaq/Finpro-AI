@@ -43,6 +43,10 @@ const PERMISSIONS: Record<Role, Set<Permission>> = {
   Individual: new Set(["individual", "assets", "documents", "ai", "itr", "reports", "settings"]),
 };
 
+/** True when this user must finish DigiLocker verification before using tax features. */
+export const needsKyc = (user: User | null, meta: Meta | null) =>
+  Boolean(user && meta?.kyc.required && user.role === "Individual" && user.kycStatus !== "VERIFIED");
+
 export interface SignupInput {
   name: string;
   email: string;
@@ -51,6 +55,8 @@ export interface SignupInput {
   professionalRole: ProfessionalRole;
   organizationName?: string;
   acceptTerms: boolean;
+  pan?: string;
+  dob?: string;
 }
 
 interface AuthValue {
@@ -63,6 +69,7 @@ interface AuthValue {
   signup: (input: SignupInput) => Promise<User>;
   logout: () => Promise<void>;
   setUser: (user: User) => void;
+  refreshUser: () => Promise<void>;
   can: (permission: Permission) => boolean;
 }
 
@@ -115,14 +122,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return user;
   }, []);
 
+  const refreshUser = useCallback(async () => {
+    const { user } = await api.get<{ user: User }>("/auth/me");
+    setUser(user);
+  }, []);
+
   const logout = useCallback(async () => {
     await api.post("/auth/logout").catch(() => undefined);
     setUser(null);
   }, []);
 
   const value = useMemo<AuthValue>(
-    () => ({ user, meta, loading, offline, login, signup, logout, setUser, can: (p) => !!user && PERMISSIONS[user.role].has(p) }),
-    [user, meta, loading, offline, login, signup, logout],
+    () => ({ user, meta, loading, offline, login, signup, logout, setUser, refreshUser, can: (p) => !!user && PERMISSIONS[user.role].has(p) }),
+    [user, meta, loading, offline, login, signup, logout, refreshUser],
   );
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
@@ -134,3 +146,6 @@ export function useAuth() {
 }
 
 export const homePath = (role: Role) => (role === "Individual" ? "/individual" : "/");
+
+/** Where to send a user after sign-in: identity verification first when it is required. */
+export const landingPath = (user: User, meta: Meta | null) => (needsKyc(user, meta) ? "/verify-identity" : homePath(user.role));

@@ -2,7 +2,7 @@ import { FormEvent, useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { ArrowLeft } from "lucide-react";
 import { ErrorBox } from "../components/ui";
-import { homePath, useAuth } from "../context/AuthContext";
+import { landingPath, useAuth } from "../context/AuthContext";
 import { errorMessage } from "../lib/api";
 import { PROFESSIONAL_ROLES, ProfessionalRole, Role } from "../types";
 import { AuthBrand } from "./Login";
@@ -14,7 +14,7 @@ const TYPES: { role: Role; title: string; text: string }[] = [
 ];
 
 export default function Signup() {
-  const { signup } = useAuth();
+  const { signup, meta } = useAuth();
   const navigate = useNavigate();
   const [role, setRole] = useState<Role>("Individual");
   const [name, setName] = useState("");
@@ -23,6 +23,8 @@ export default function Signup() {
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
   const [professionalRole, setProfessionalRole] = useState<ProfessionalRole>("CA");
+  const [pan, setPan] = useState("");
+  const [dob, setDob] = useState("");
   const [terms, setTerms] = useState(false);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
@@ -30,12 +32,17 @@ export default function Signup() {
     document.title = "Create account · Finpro AI";
   }, []);
 
+  // Individuals give PAN + DOB up front so they can verify with DigiLocker right after signup.
+  const kycFields = role === "Individual" && Boolean(meta?.kyc.enabled);
+  const kycRequired = kycFields && Boolean(meta?.kyc.required);
+
   const submit = async (e: FormEvent) => {
     e.preventDefault();
     setError("");
     if (password.length < 10) return setError("Password must be at least 10 characters.");
     if (password !== confirm) return setError("Passwords do not match.");
     if (!terms) return setError("Please accept the terms to continue.");
+    if (kycFields && pan && !/^[A-Z]{5}[0-9]{4}[A-Z]$/.test(pan)) return setError("Enter a valid PAN (e.g. ABCDE1234F).");
     setBusy(true);
     try {
       const user = await signup({
@@ -46,8 +53,9 @@ export default function Signup() {
         professionalRole: role === "Professional User" ? professionalRole : "Other",
         organizationName: role === "Individual" ? undefined : organizationName || undefined,
         acceptTerms: true,
+        ...(kycFields ? { pan: pan || undefined, dob: dob || undefined } : {}),
       });
-      navigate(homePath(user.role), { replace: true });
+      navigate(landingPath(user, meta), { replace: true });
     } catch (err) {
       setError(errorMessage(err, "Sign up failed."));
     } finally {
@@ -88,6 +96,30 @@ export default function Signup() {
             Email
             <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="email" required />
           </label>
+          {kycFields && (
+            <>
+              <label>
+                PAN
+                <input
+                  value={pan}
+                  onChange={(e) => setPan(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ""))}
+                  maxLength={10}
+                  placeholder="ABCDE1234F"
+                  autoComplete="off"
+                  required={kycRequired}
+                />
+                <span className="field-hint">Must match the PAN in your DigiLocker.</span>
+              </label>
+              <label>
+                Date of birth
+                <input type="date" value={dob} onChange={(e) => setDob(e.target.value)} max={new Date().toISOString().slice(0, 10)} required={kycRequired} />
+                <span className="field-hint">As on Aadhaar.</span>
+              </label>
+              <p className="muted full" style={{ margin: 0 }}>
+                Next step: verify your Aadhaar and PAN securely with DigiLocker. Use your full name exactly as on Aadhaar.
+              </p>
+            </>
+          )}
           {role !== "Individual" && (
             <label>
               {role === "Professional User" ? "Firm / practice name" : "Business name"}

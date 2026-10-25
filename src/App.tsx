@@ -1,7 +1,7 @@
 import { lazy, ReactNode, Suspense } from "react";
 import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import { ErrorBoundary, Spinner } from "./components/ui";
-import { AuthProvider, homePath, Permission, useAuth } from "./context/AuthContext";
+import { AuthProvider, homePath, landingPath, needsKyc, Permission, useAuth } from "./context/AuthContext";
 import AppLayout from "./layouts/AppLayout";
 import Login from "./pages/Login";
 import Signup from "./pages/Signup";
@@ -26,6 +26,7 @@ const IndividualDashboard = lazy(() => import("./pages/IndividualDashboard"));
 const Assets = lazy(() => import("./pages/Assets"));
 const ITRFiling = lazy(() => import("./pages/ITRFiling"));
 const NotFound = lazy(() => import("./pages/NotFound"));
+const VerifyIdentity = lazy(() => import("./pages/VerifyIdentity"));
 
 function FullScreenSpinner() {
   const { offline } = useAuth();
@@ -45,15 +46,17 @@ function Protected({ children }: { children: ReactNode }) {
 }
 
 function PublicOnly({ children }: { children: ReactNode }) {
-  const { user, loading } = useAuth();
+  const { user, loading, meta } = useAuth();
   if (loading) return <FullScreenSpinner />;
-  if (user) return <Navigate to={homePath(user.role)} replace />;
+  if (user) return <Navigate to={landingPath(user, meta)} replace />;
   return <>{children}</>;
 }
 
 function Guard({ permission, children }: { permission: Permission; children: ReactNode }) {
-  const { can, user } = useAuth();
+  const { can, user, meta } = useAuth();
   if (!can(permission)) return <Navigate to={user ? homePath(user.role) : "/login"} replace />;
+  // Individual tax features stay locked until DigiLocker verification succeeds (Settings stays open).
+  if (needsKyc(user, meta) && permission !== "settings") return <Navigate to="/verify-identity" replace />;
   return <Suspense fallback={<Spinner />}>{children}</Suspense>;
 }
 
@@ -119,6 +122,14 @@ export default function App() {
               }
             >
               <Route index element={<Home />} />
+              <Route
+                path="verify-identity"
+                element={
+                  <Suspense fallback={<Spinner />}>
+                    <VerifyIdentity />
+                  </Suspense>
+                }
+              />
               {guarded.map(([path, permission, element]) => (
                 <Route key={path} path={path} element={<Guard permission={permission}>{element}</Guard>} />
               ))}

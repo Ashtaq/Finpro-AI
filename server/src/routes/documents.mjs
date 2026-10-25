@@ -6,7 +6,7 @@ import { audit } from "../lib/audit.mjs";
 import { badRequest, forbidden, notFound } from "../lib/errors.mjs";
 import { toDocument } from "../lib/mappers.mjs";
 import { parse, text } from "../lib/validate.mjs";
-import { requireAuth } from "../middleware/auth.mjs";
+import { requireAuth, requireKyc } from "../middleware/auth.mjs";
 import { ALLOWED_EXTENSIONS, extensionOf, safeDisplayName, signatureMatches } from "../services/storage.mjs";
 
 const metaSchema = z.object({
@@ -24,7 +24,7 @@ const SELECT = `SELECT d.*, u.name AS uploader_name, p.name AS project_name, c.c
 
 export default function documentRoutes({ db, config, storage }) {
   const r = Router();
-  r.use(requireAuth);
+  r.use(requireAuth, requireKyc(config));
   const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: config.maxUploadBytes, files: 1, fields: 10 } });
   const get = (req) => {
     const row = db.prepare(`${SELECT} WHERE d.id = ? AND d.organization_id = ?`).get(req.params.id, req.user.organization_id);

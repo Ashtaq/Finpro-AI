@@ -29,8 +29,9 @@ export function resolveSession(db, config, token) {
   const id = sha256(token);
   const row = db
     .prepare(
-      `SELECT s.id AS session_id, s.expires_at, s.last_seen_at, u.*, o.name AS organization_name, o.kind AS organization_kind
+      `SELECT s.id AS session_id, s.expires_at, s.last_seen_at, u.*, o.name AS organization_name, o.kind AS organization_kind, ip.kyc_status
        FROM sessions s JOIN users u ON u.id = s.user_id JOIN organizations o ON o.id = u.organization_id
+       LEFT JOIN individual_profiles ip ON ip.user_id = u.id
        WHERE s.id = ?`,
     )
     .get(id);

@@ -1,15 +1,25 @@
 import assert from "node:assert/strict";
 import { after, describe, it } from "node:test";
 import { validateItr } from "../src/services/itr.mjs";
+import request from "supertest";
 import { setup, signup } from "./helpers.mjs";
 
 const { app, cleanup } = setup({ env: { KYC_MODE: "mock" } });
 after(cleanup);
 
+let panSeq = 1000;
+const nextPan = () => `ABCP${String.fromCharCode(65 + (panSeq % 26))}${panSeq++}F`;
+/** Individual user who has completed (mock) KYC. */
+async function verifiedIndividual() {
+  const u = await signup(app, "Individual", { pan: nextPan(), dob: "1990-01-01" });
+  assert.equal((await u.agent.post("/api/kyc/start").expect(200)).body.status, "VERIFIED");
+  return u;
+}
+
 describe("individual workspace", () => {
   it("manages assets privately and summarizes net worth", async () => {
-    const a = await signup(app, "Individual");
-    const b = await signup(app, "Individual");
+    const a = await verifiedIndividual();
+    const b = await verifiedIndividual();
     const asset = (await a.agent.post("/api/individual/assets").send({ name: "FD", category: "Bank", value: 100000 }).expect(201)).body;
     await a.agent.post("/api/individual/assets").send({ name: "Car loan", category: "Liability", value: 40000 }).expect(201);
     assert.equal((await b.agent.patch(`/api/individual/assets/${asset.id}`).send({ value: 1 })).status, 404);
@@ -19,7 +29,7 @@ describe("individual workspace", () => {
   });
 
   it("runs the ITR draft lifecycle and blocks submission without a provider", async () => {
-    const a = await signup(app, "Individual");
+    const a = await verifiedIndividual();
     const itr = (await a.agent.post("/api/individual/itr").send({ assessmentYear: "2026-27", itrType: "ITR-1" }).expect(201)).body;
     assert.equal((await a.agent.post("/api/individual/itr").send({ assessmentYear: "2026-27" })).status, 409);
     assert.equal((await a.agent.post("/api/individual/itr").send({ assessmentYear: "2026-28" })).status, 400);
@@ -47,12 +57,26 @@ describe("individual workspace", () => {
     assert.equal((await a.agent.get(`/api/individual/itr/${itr.id}`)).body.consent, null);
   });
 
-  it("supports mock KYC in development and locks PAN once verified", async () => {
-    const a = await signup(app, "Individual");
-    assert.equal((await a.agent.post("/api/kyc/start")).status, 400);
-    await a.agent.patch("/api/individual/profile").send({ pan: "ABCPE1234F", dob: "1990-01-01" }).expect(200);
+  it("requires KYC before tax features and locks PAN/DOB once verified", async () => {
+    // PAN + DOB are mandatory at signup when KYC is required.
+    assert.equal((await supertestSignup({ pan: undefined, dob: undefined })).status, 400);
+    const pan = nextPan();
+    const a = await signup(app, "Individual", { pan, dob: "1990-01-01" });
+    assert.equal(a.user.kycStatus, "NOT_STARTED");
+    const blocked = await a.agent.get("/api/individual/assets");
+    assert.equal(blocked.status, 403);
+    assert.equal(blocked.body.details[0].message, "KYC_REQUIRED");
+    assert.equal((await a.agent.get("/api/documents")).status, 403);
+    assert.equal((await a.agent.get("/api/individual/summary")).status, 200, "summary stays available for onboarding");
+
     assert.equal((await a.agent.post("/api/kyc/start").expect(200)).body.status, "VERIFIED");
+    assert.equal((await a.agent.get("/api/auth/me")).body.user.kycStatus, "VERIFIED");
+    await a.agent.get("/api/individual/assets").expect(200);
     assert.equal((await a.agent.patch("/api/individual/profile").send({ pan: "ZZZPZ9999Z" })).status, 409);
+    assert.equal((await a.agent.patch("/api/individual/profile").send({ dob: "1991-01-01" })).status, 409);
+
+    // The same PAN cannot be verified on a second account.
+    assert.equal((await supertestSignup({ pan })).status, 409);
   });
 });
 
@@ -81,3 +105,17 @@ describe("ITR rules", () => {
     assert.ok(r.errors.some((e) => e.field === "deductions"));
   });
 });
+
+function supertestSignup(extra) {
+  return request(app)
+    .post("/api/auth/signup")
+    .send({
+      name: "Signup Check",
+      email: `chk-${Math.random()}@example.com`,
+      password: "correct-horse-battery",
+      role: "Individual",
+      acceptTerms: true,
+      dob: "1990-01-01",
+      ...extra,
+    });
+}
