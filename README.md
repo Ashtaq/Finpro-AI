@@ -72,3 +72,12 @@ See [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md). Read [docs/PRODUCTION-READINESS.md
 - [docs/ITR-FILING-SPEC.md](docs/ITR-FILING-SPEC.md) — ITR product and technical specification
 - [SECURITY.md](SECURITY.md) — security model and vulnerability reporting
 - [CHANGELOG.md](CHANGELOG.md)
+
+## Troubleshooting (local dev)
+
+| Symptom                                                                                                                 | Fix                                                                                                                                                                  |
+| ----------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `node -v` shows < 22, `bad option: --env-file-if-exists`, or `better-sqlite3` build errors (`'climits' file not found`) | Put Node 22+ first on PATH (Homebrew: `/opt/homebrew/opt/node@22/bin`), then `rm -rf node_modules server/node_modules && npm install && npm --prefix server install` |
+| `✖ Finpro dev environment is not ready`                                                                                 | Follow the printed command — usually reinstalling after `git pull` / branch switch                                                                                   |
+| `[vite] http proxy error … ECONNREFUSED 127.0.0.1:8787`                                                                 | The API is not running. Check the `[api]` lines above it; switching branches while `dev:full` runs can leave stale dependencies — stop, reinstall, restart           |
+| Demo login fails                                                                                                        | Demo users are created only on an empty database with `SEED_DEMO=true`: `rm -rf server/data` and restart                                                             |

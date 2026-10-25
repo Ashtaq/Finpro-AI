@@ -28,9 +28,11 @@ const ITRFiling = lazy(() => import("./pages/ITRFiling"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 
 function FullScreenSpinner() {
+  const { offline } = useAuth();
   return (
-    <div className="center-screen">
+    <div className="center-screen" style={{ flexDirection: "column", gap: 12 }}>
       <div className="spinner" />
+      {offline && <p className="muted">Connecting to the server… retrying automatically.</p>}
     </div>
   );
 }
