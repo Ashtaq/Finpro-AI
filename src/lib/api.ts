@@ -46,3 +46,48 @@ export const api = {
 };
 
 export const errorMessage = (err: unknown, fallback = "Something went wrong.") => (err instanceof Error ? err.message : fallback);
+
+/**
+ * POST that reads a Server-Sent Events response (used for streamed AI answers).
+ * Errors before the stream starts are thrown as ApiError, like other requests. Abort `signal` to stop.
+ */
+export async function streamPost(path: string, body: Record<string, unknown>, onEvent: (event: string, data: unknown) => void, signal?: AbortSignal) {
+  let res: Response;
+  try {
+    res = await fetch(`${BASE}/api${path}`, {
+      method: "POST",
+      credentials: BASE ? "include" : "same-origin",
+      headers: { "Content-Type": "application/json", Accept: "text/event-stream" },
+      body: JSON.stringify(body),
+      signal,
+    });
+  } catch (err) {
+    if (signal?.aborted) throw err;
+    throw new ApiError(0, "Cannot reach the server. Check your connection and try again.");
+  }
+  if (!res.ok || !res.body) {
+    const data = await res.json().catch(() => ({}));
+    if (res.status === 401) window.dispatchEvent(new Event("finpro:unauthorized"));
+    throw new ApiError(res.status, data.error || `Request failed (${res.status})`, data.details);
+  }
+  const reader = res.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "";
+  for (;;) {
+    const { value, done } = await reader.read();
+    if (done) break;
+    buffer += decoder.decode(value, { stream: true });
+    let idx;
+    while ((idx = buffer.indexOf("\n\n")) >= 0) {
+      const block = buffer.slice(0, idx);
+      buffer = buffer.slice(idx + 2);
+      let event = "message";
+      const data: string[] = [];
+      for (const line of block.split("\n")) {
+        if (line.startsWith("event:")) event = line.slice(6).trim();
+        else if (line.startsWith("data:")) data.push(line.slice(5).trimStart());
+      }
+      if (data.length) onEvent(event, JSON.parse(data.join("\n")));
+    }
+  }
+}

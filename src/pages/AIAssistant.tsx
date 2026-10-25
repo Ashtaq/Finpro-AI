@@ -1,10 +1,10 @@
 import { useEffect, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
-import { Bot, Copy, Paperclip, Plus, Send, Sparkles, Trash2, X } from "lucide-react";
+import { Bot, Copy, Paperclip, Plus, Send, Sparkles, Square, Trash2, X } from "lucide-react";
 import { uploadDocument } from "../components/documents";
 import { Badge, Button, ErrorBox, Modal, Notice } from "../components/ui";
 import { useAuth } from "../context/AuthContext";
-import { api, errorMessage } from "../lib/api";
+import { api, errorMessage, streamPost } from "../lib/api";
 import { formatDateTime } from "../lib/format";
 import { useAsync } from "../lib/useAsync";
 import { Agent, ChatMessage, ConversationSummary, DocumentRecord, Project } from "../types";
@@ -33,6 +33,7 @@ export default function AIAssistant() {
   const [input, setInput] = useState("");
   const [sending, setSending] = useState(false);
   const [deep, setDeep] = useState(false);
+  const abortRef = useRef<AbortController | null>(null);
   const [error, setError] = useState("");
   const end = useRef<HTMLDivElement>(null);
   const fileInput = useRef<HTMLInputElement>(null);
@@ -47,12 +48,14 @@ export default function AIAssistant() {
   }, [messages]);
 
   const newConversation = () => {
+    abortRef.current?.abort();
     setConversationId(null);
     setMessages([]);
     setAttached([]);
     setError("");
   };
   const openConversation = async (id: string) => {
+    abortRef.current?.abort();
     setError("");
     try {
       const c = await api.get<{ id: string; agentId: string; projectId: string | null; messages: ChatMessage[] }>(`/assistant/conversations/${id}`);
@@ -81,38 +84,73 @@ export default function AIAssistant() {
     if (!text || sending) return;
     setInput("");
     setError("");
+    const userId = `u-${Date.now()}`;
     const pendingId = `pending-${Date.now()}`;
     setMessages((m) => [
       ...m,
-      { id: `u-${Date.now()}`, role: "user", content: text, createdAt: new Date().toISOString() },
+      { id: userId, role: "user", content: text, createdAt: new Date().toISOString() },
       { id: pendingId, role: "assistant", content: "", createdAt: new Date().toISOString(), pending: true },
     ]);
     setSending(true);
+    const controller = new AbortController();
+    abortRef.current = controller;
+    const update = (patch: Partial<ChatMessage>) => setMessages((m) => m.map((x) => (x.id === pendingId ? { ...x, ...patch } : x)));
+    let streamed = "";
+    let convId = conversationId;
+    const remember = (id: string) => {
+      if (convId) return;
+      convId = id;
+      setConversationId(id);
+      setConversations((cs) => [
+        { id, title: text.slice(0, 80), agentId, projectId: projectId || null, updatedAt: new Date().toISOString() },
+        ...cs.filter((c) => c.id !== id),
+      ]);
+    };
     try {
-      const res = await api.post<{ conversationId: string; message: ChatMessage }>("/assistant/messages", {
-        message: text,
-        agentId,
-        conversationId: conversationId ?? undefined,
-        projectId: conversationId ? undefined : projectId || null,
-        documentIds: attached.map((d) => d.id),
-        complexity: deep ? "top" : "auto",
-      });
-      setMessages((m) => m.map((x) => (x.id === pendingId ? res.message : x)));
-      if (!conversationId) {
-        setConversationId(res.conversationId);
-        setConversations((cs) => [
-          { id: res.conversationId, title: text.slice(0, 80), agentId, projectId: projectId || null, updatedAt: new Date().toISOString() },
-          ...cs,
-        ]);
-      }
+      await streamPost(
+        "/assistant/messages/stream",
+        {
+          message: text,
+          agentId,
+          conversationId: conversationId ?? undefined,
+          projectId: conversationId ? undefined : projectId || null,
+          documentIds: attached.map((d) => d.id),
+          complexity: deep ? "top" : "auto",
+        },
+        (event, raw) => {
+          const data = raw as { conversationId?: string; text?: string; model?: string; message?: ChatMessage; error?: string };
+          if (event === "start" && data.conversationId) remember(data.conversationId);
+          else if (event === "meta") update({ model: data.model });
+          else if (event === "delta" && data.text) {
+            streamed += data.text;
+            update({ content: streamed });
+          } else if (event === "done" && data.message) {
+            const final = data.message;
+            setMessages((m) => m.map((x) => (x.id === pendingId ? final : x)));
+          } else if (event === "error") throw new Error(data.error || "AI request failed.");
+        },
+        controller.signal,
+      );
     } catch (err) {
-      setMessages((m) => m.filter((x) => x.id !== pendingId));
-      setInput(text);
-      setError(errorMessage(err, "AI request failed."));
+      if (controller.signal.aborted) {
+        // Stopped by the user: keep what was written; the server saved the same partial answer.
+        if (streamed.trim()) update({ pending: false, limitations: "Stopped before the answer was complete." });
+        else {
+          setMessages((m) => m.filter((x) => x.id !== pendingId && x.id !== userId));
+          setInput(text);
+        }
+      } else {
+        setMessages((m) => m.filter((x) => x.id !== pendingId && x.id !== userId));
+        setInput(text);
+        setError(errorMessage(err, "AI request failed."));
+      }
     } finally {
+      abortRef.current = null;
       setSending(false);
     }
   };
+  const stop = () => abortRef.current?.abort();
+  useEffect(() => () => abortRef.current?.abort(), []);
 
   const uploadAndAttach = async (files: FileList | null) => {
     if (!files?.length) return;
@@ -209,7 +247,10 @@ export default function AIAssistant() {
               <div className={m.role === "user" ? "chat-avatar user" : "chat-avatar"}>{m.role === "user" ? user?.name.slice(0, 1) : <Bot size={16} />}</div>
               <div className="chat-bubble">
                 {m.role === "assistant" && <div className="assistant-label">{agent?.name || "Assistant"}</div>}
-                <div className="chat-content">{m.pending ? "Thinking…" : m.content}</div>
+                <div className="chat-content">
+                  {m.content || (m.pending ? "Thinking…" : "")}
+                  {m.pending && m.content && <span className="chat-caret" aria-hidden="true" />}
+                </div>
                 {m.role === "assistant" && !m.pending && (
                   <>
                     {(m.sources?.length || m.limitations) && (
@@ -280,9 +321,15 @@ export default function AIAssistant() {
               Deep analysis
             </label>
             <span>AI output is assistive. Review before professional use.</span>
-            <button className="icon-btn" onClick={() => void send()} disabled={sending || !input.trim()} aria-label="Send">
-              <Send size={16} />
-            </button>
+            {sending ? (
+              <button className="icon-btn stop-btn" onClick={stop} aria-label="Stop generating" title="Stop">
+                <Square size={14} />
+              </button>
+            ) : (
+              <button className="icon-btn" onClick={() => void send()} disabled={!input.trim()} aria-label="Send">
+                <Send size={16} />
+              </button>
+            )}
           </div>
         </div>
       </main>

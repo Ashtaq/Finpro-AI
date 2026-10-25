@@ -60,8 +60,8 @@ export default function assistantRoutes({ db, config, ai, storage }) {
     res.status(204).end();
   });
 
-  r.post("/messages", limiter, async (req, res) => {
-    const b = parse(messageSchema, req.body);
+  /** Validate, load context and record the user's message. Throws (before anything is streamed) on bad input. */
+  async function prepareTurn(req, b) {
     const org = req.user.organization_id;
     const agent = findAgent(b.agentId);
     if (!agent) throw notFound("Agent not found.");
@@ -122,23 +122,26 @@ export default function assistantRoutes({ db, config, ai, storage }) {
       new Date().toISOString(),
     );
 
-    let result;
-    try {
-      result = await ai.reply({
+    return {
+      org,
+      agent,
+      convo,
+      documents,
+      userMessageId,
+      input: {
         agent,
         history,
         message: b.message,
         documents,
         complexity: b.complexity,
         ctx: { orgId: org, userId: req.user.id, userRole: req.user.role, projectName: project?.name, clientName: project?.company },
-      });
-    } catch (err) {
-      req.log?.warn({ err: { message: err.message, status: err.status } }, "AI service call failed");
-      db.prepare("DELETE FROM messages WHERE id = ?").run(userMessageId); // keep history strictly alternating
-      const status = [503, 504].includes(err.status) ? err.status : 502;
-      throw new HttpError(status, err.userMessage || "The AI assistant could not complete this request. Please try again.");
-    }
+      },
+    };
+  }
 
+  /** Store the assistant's answer and return it in API shape. */
+  function saveAnswer(req, turn, result) {
+    const { org, agent, convo, documents } = turn;
     const assistantId = crypto.randomUUID();
     const sources = documents.map((d) => ({ documentId: d.id, name: d.name, read: d.text != null }));
     db.prepare(
@@ -158,8 +161,91 @@ export default function assistantRoutes({ db, config, ai, storage }) {
     db.prepare("UPDATE conversations SET updated_at = ? WHERE id = ?").run(new Date().toISOString(), convo.id);
     if (ai.enabled) db.prepare("UPDATE organizations SET ai_requests = ai_requests + 1 WHERE id = ?").run(org);
     audit(db, req, "AI request", agent.name, { conversationId: convo.id, ...(convo.project_id ? { projectId: convo.project_id } : {}) });
+    return toMessage(db.prepare("SELECT * FROM messages WHERE id = ?").get(assistantId));
+  }
 
-    res.json({ conversationId: convo.id, message: toMessage(db.prepare("SELECT * FROM messages WHERE id = ?").get(assistantId)) });
+  const dropUserMessage = (turn) => db.prepare("DELETE FROM messages WHERE id = ?").run(turn.userMessageId); // keep history strictly alternating
+
+  r.post("/messages", limiter, async (req, res) => {
+    const b = parse(messageSchema, req.body);
+    const turn = await prepareTurn(req, b);
+    let result;
+    try {
+      result = await ai.reply(turn.input);
+    } catch (err) {
+      req.log?.warn({ err: { message: err.message, status: err.status } }, "AI service call failed");
+      dropUserMessage(turn);
+      const status = [503, 504].includes(err.status) ? err.status : 502;
+      throw new HttpError(status, err.userMessage || "The AI assistant could not complete this request. Please try again.");
+    }
+    res.json({ conversationId: turn.convo.id, message: saveAnswer(req, turn, result) });
+  });
+
+  /**
+   * Same as POST /messages but streams the answer as Server-Sent Events:
+   * start {conversationId} → meta {model} → delta {text}… → done {conversationId, message} | error {error}.
+   * If the browser disconnects (Stop), the AI service request is aborted, which stops the model; any text
+   * already generated is saved as a partial answer.
+   */
+  r.post("/messages/stream", limiter, async (req, res) => {
+    const b = parse(messageSchema, req.body);
+    const turn = await prepareTurn(req, b);
+
+    res.status(200).set({ "Content-Type": "text/event-stream; charset=utf-8", "Cache-Control": "no-store", "X-Accel-Buffering": "no" });
+    res.flushHeaders();
+    const send = (event, data) => {
+      if (!res.writableEnded && !res.destroyed) res.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
+    };
+    const abort = new AbortController();
+    let stopped = false;
+    res.on("close", () => {
+      if (!res.writableEnded) {
+        stopped = true;
+        abort.abort();
+      }
+    });
+
+    send("start", { conversationId: turn.convo.id });
+    let partial = "";
+    let model = null;
+    let result = null;
+    let failure = null;
+    try {
+      result = await ai.stream({
+        ...turn.input,
+        signal: abort.signal,
+        onEvent: (event, data) => {
+          if (event === "meta") {
+            model = data.provider ? `${data.provider}/${data.model}` : data.model;
+            send("meta", { model });
+          } else if (event === "delta") {
+            partial += data.text;
+            send("delta", { text: data.text });
+          }
+        },
+      });
+    } catch (err) {
+      if (!stopped) {
+        req.log?.warn({ err: { message: err.message, status: err.status } }, "AI service stream failed");
+        failure = err.userMessage || "The AI assistant could not complete this request. Please try again.";
+      }
+    }
+
+    if (result) {
+      send("done", { conversationId: turn.convo.id, message: saveAnswer(req, turn, result) });
+    } else if (partial.trim()) {
+      const message = saveAnswer(req, turn, {
+        content: partial,
+        limitations: stopped ? "Stopped before the answer was complete." : "The answer was interrupted before it was complete.",
+        model,
+        usage: null,
+      });
+      send("done", { conversationId: turn.convo.id, message });
+    } else {
+      dropUserMessage(turn);
+      if (!stopped) send("error", { error: failure || "The AI assistant could not complete this request. Please try again." });
+    }
+    res.end();
   });
 
   return r;

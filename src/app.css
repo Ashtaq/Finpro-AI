@@ -280,3 +280,28 @@
     gap: 6px;
   }
 }
+
+/* Streaming answer */
+.chat-caret {
+  display: inline-block;
+  width: 7px;
+  height: 14px;
+  margin-left: 2px;
+  vertical-align: text-bottom;
+  background: #377be0;
+  animation: caret-blink 1s steps(2, start) infinite;
+}
+@keyframes caret-blink {
+  to {
+    visibility: hidden;
+  }
+}
+.icon-btn.stop-btn {
+  background: #162033;
+  border-color: #162033;
+  color: #fff;
+}
+.icon-btn.stop-btn:hover {
+  background: #2b3a55;
+  color: #fff;
+}

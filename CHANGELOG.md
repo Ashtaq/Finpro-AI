@@ -1,5 +1,16 @@
 # Changelog
 
+## 2.1.1 — 2026-10-26 — Streaming AI answers
+
+### Added
+
+- AI answers stream into the chat as they are written, with a **Stop** button. Stopping closes the connection all the way to the model (Ollama stops generating) and keeps the partial answer.
+
+### Fixed
+
+- Local Qwen3 models timed out on laptops: their long "thinking" step is now off by default, the model is loaded at startup, and timeouts are not retried.
+- In development the chat now shows the AI service's actual reason when it fails (e.g. "run `ollama pull qwen3:8b`").
+
 ## 2.1.0 — 2026-10-25 — AI assistant service
 
 ### Added
