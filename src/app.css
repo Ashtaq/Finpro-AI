@@ -234,3 +234,49 @@
   gap: 6px;
   align-items: center;
 }
+
+/* AI assistant: deep-analysis toggle and model label */
+.deep-toggle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 10px;
+  font-weight: 700;
+  color: #33425b;
+  cursor: pointer;
+}
+.deep-toggle input {
+  margin: 0;
+}
+.chat-model {
+  align-self: center;
+  font-size: 9px;
+  color: #98a3b3;
+  margin-left: 4px;
+}
+
+/* The history column is hidden below 1180px; let the chat use the full width. */
+@media (max-width: 1180px) {
+  .ai-shell {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+@media (max-width: 760px) {
+  .ai-top {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+  }
+  .ai-top > div:last-child {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .ai-top select {
+    width: 100%;
+  }
+  .composer-bottom {
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+}

@@ -7,3 +7,6 @@ server/package-lock.json
 docs/*.md
 src/styles.css
 src/individual.css
+AI_Assistant_Code/.venv
+AI_Assistant_Code/.pytest_cache
+AI_Assistant_Code/.ruff_cache

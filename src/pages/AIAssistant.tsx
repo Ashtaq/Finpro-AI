@@ -32,6 +32,7 @@ export default function AIAssistant() {
   const [picker, setPicker] = useState(false);
   const [input, setInput] = useState("");
   const [sending, setSending] = useState(false);
+  const [deep, setDeep] = useState(false);
   const [error, setError] = useState("");
   const end = useRef<HTMLDivElement>(null);
   const fileInput = useRef<HTMLInputElement>(null);
@@ -94,6 +95,7 @@ export default function AIAssistant() {
         conversationId: conversationId ?? undefined,
         projectId: conversationId ? undefined : projectId || null,
         documentIds: attached.map((d) => d.id),
+        complexity: deep ? "top" : "auto",
       });
       setMessages((m) => m.map((x) => (x.id === pendingId ? res.message : x)));
       if (!conversationId) {
@@ -193,7 +195,10 @@ export default function AIAssistant() {
             <div className="ai-empty">
               <Bot size={28} />
               <h2>Ask a question</h2>
-              <p>Attach documents for context. Text, CSV and JSON files are read directly; other formats are referenced by name.</p>
+              <p>
+                Attach documents for context. Text, CSV and JSON files are read directly; other formats are referenced by name. Turn on{" "}
+                <strong>Deep analysis</strong> for complex questions.
+              </p>
               {meta && !meta.ai.enabled && (
                 <Notice title="AI provider not configured">The assistant will reply that analysis is unavailable until an administrator configures it.</Notice>
               )}
@@ -225,6 +230,7 @@ export default function AIAssistant() {
                       <button onClick={() => void navigator.clipboard?.writeText(m.content)} aria-label="Copy answer">
                         <Copy size={14} />
                       </button>
+                      {m.model && <span className="chat-model">{m.model}</span>}
                     </div>
                   </>
                 )}
@@ -266,6 +272,13 @@ export default function AIAssistant() {
             }
           />
           <div className="composer-bottom">
+            <label
+              className="deep-toggle"
+              title="Use the most capable model for this question. Slower and costs more; normally the assistant decides automatically."
+            >
+              <input type="checkbox" checked={deep} onChange={(e) => setDeep(e.target.checked)} />
+              Deep analysis
+            </label>
             <span>AI output is assistive. Review before professional use.</span>
             <button className="icon-btn" onClick={() => void send()} disabled={sending || !input.trim()} aria-label="Send">
               <Send size={16} />

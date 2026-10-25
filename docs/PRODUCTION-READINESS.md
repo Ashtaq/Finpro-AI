@@ -31,7 +31,7 @@ v2.0.0 rebuilds the API and wires every screen to it. It is suitable for a **con
 1. **Legal pages** — publish Terms of Service and Privacy Policy (DPDP Act 2023 notice, purpose, retention, grievance officer) and link them from signup.
 2. **Backups** — configure Litestream or scheduled snapshots of `DATA_DIR` and test a restore.
 3. **Email** — there is no email verification or self-service "forgot password" yet. Until an email provider is chosen, password resets go through a workspace Professional User; Individual users cannot self-recover. Decide whether that is acceptable for launch.
-4. **AI data processing** — if enabling `AI_PROVIDER=anthropic`, confirm customers consent to client documents being sent to the AI provider.
+4. **AI data processing** — if enabling `AI_PROVIDER=service` with hosted or top models, confirm customers consent to client documents being sent to the AI provider.
 5. **Hosting region** — choose an India region if your customers require data localisation.
 
 ## Roadmap (not blocking a controlled launch)

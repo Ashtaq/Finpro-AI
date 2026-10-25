@@ -1,5 +1,10 @@
 # Local production-like run:  docker compose up --build
 # Then open http://localhost:8787. Reads .env if present — production rules apply (SEED_DEMO is refused).
+#
+# With the AI assistant (set AI_PROVIDER=service, AI_SERVICE_TOKEN and the AI_* model settings in .env):
+#   docker compose --profile ai up --build
+# Add the local Ollama container too (instead of a hosted model):
+#   docker compose --profile ai --profile ollama up --build   then: docker compose exec ollama ollama pull qwen3:8b
 services:
   finpro:
     build: .
@@ -12,6 +17,7 @@ services:
     environment:
       NODE_ENV: ${NODE_ENV:-production}
       APP_ORIGIN: ${APP_ORIGIN:-http://localhost:8787}
+      AI_SERVICE_URL: ${AI_SERVICE_URL:-http://ai:8090}
     volumes:
       - finpro-data:/data
     restart: unless-stopped
@@ -21,5 +27,34 @@ services:
     security_opt:
       - no-new-privileges:true
 
+  # AI_Assistant_Code — internal only (no published port); only the finpro API talks to it.
+  ai:
+    profiles: ["ai"]
+    build: ./AI_Assistant_Code
+    image: finpro-ai-assistant:latest
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      AI_ENV: ${NODE_ENV:-production}
+      OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://ollama:11434/v1}
+    expose:
+      - "8090"
+    restart: unless-stopped
+    read_only: true
+    tmpfs:
+      - /tmp
+    security_opt:
+      - no-new-privileges:true
+
+  # Optional self-hosted open-source models (set AI_FAST_PROVIDER=ollama). Pin an image version for production.
+  ollama:
+    profiles: ["ollama"]
+    image: ollama/ollama:latest
+    volumes:
+      - ollama-data:/root/.ollama
+    restart: unless-stopped
+
 volumes:
   finpro-data:
+  ollama-data:
