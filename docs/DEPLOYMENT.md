@@ -23,7 +23,7 @@ TRUST_PROXY=1            # behind a load balancer / ingress
 DATA_DIR=/data           # mount a persistent volume here
 ```
 
-Store secrets (`ANTHROPIC_API_KEY`, `DIGILOCKER_CLIENT_SECRET`) in the platform's secret store, not in the image.
+Store secrets (`AI_SERVICE_TOKEN`, `AI_HOSTED_API_KEY`, `AI_TOP_API_KEY`, `DIGILOCKER_CLIENT_SECRET`) in the platform's secret store, not in the image.
 
 ## 3. Run
 
@@ -58,15 +58,36 @@ Everything lives in `DATA_DIR`: `finpro.db` (+ `-wal`/`-shm`) and `uploads/`.
 
 ## 5. Enabling optional integrations
 
-### AI assistant (Claude)
+### AI assistant (AI_Assistant_Code service)
+
+The assistant runs as a second container built from `AI_Assistant_Code/`. Keep it on the private network only (no public port); the Finpro API calls it with a shared bearer token.
 
 ```env
-AI_PROVIDER=anthropic
-ANTHROPIC_API_KEY=...         # secret
-AI_MODEL=claude-sonnet-5-5    # any available model id
+# Finpro API
+AI_PROVIDER=service
+AI_SERVICE_URL=http://ai:8090          # internal address of the AI container
+AI_SERVICE_TOKEN=<64 hex chars>        # secret, same value in both containers
+
+# AI service
+AI_ENV=production
+AI_HOSTED_NAME=groq                    # cheap hosted open-source model (fast tier)
+AI_HOSTED_BASE_URL=https://api.groq.com/openai/v1
+AI_HOSTED_API_KEY=...                  # secret
+AI_HOSTED_MODEL=<model id from the provider>
+AI_TOP_PROVIDER=anthropic              # top model for complex questions
+AI_TOP_API_KEY=...                     # secret
+AI_TOP_MODEL=claude-opus-5-5
+AI_TOP_DAILY_LIMIT_PER_ORG=200
 ```
 
-Review the data-processing terms for sending client documents to an AI provider and update your privacy policy before enabling.
+```bash
+docker build -t finpro-ai-assistant:1.0.0 AI_Assistant_Code
+docker run -d --name ai --network <private-net> --env-file ai.env --read-only --tmpfs /tmp finpro-ai-assistant:1.0.0
+```
+
+Or with Compose: `docker compose --profile ai up --build`. Health: `GET /health` on port 8090 (tiers and models, no secrets). The service refuses to start in production without a 32+ character token and a complete fast-tier configuration.
+
+Before enabling: review the data-processing terms of each model provider (prefer zero-data-retention plans), record customer consent for sending documents to AI providers, and update your privacy policy. PAN, Aadhaar, mobile numbers and e-mails are masked before any hosted model call (`AI_REDACT_PII=true`).
 
 ### DigiLocker KYC
 

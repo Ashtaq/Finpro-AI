@@ -16,6 +16,8 @@ const messageSchema = z.object({
   agentId: z.string().trim().max(32).default("finance"),
   projectId: z.string().trim().max(64).nullable().optional(),
   documentIds: z.array(z.string().max(64)).max(8).default([]),
+  // auto = the AI service decides; top = "Deep analysis" (top model); fast = cheapest model.
+  complexity: z.enum(["auto", "fast", "top"]).default("auto"),
 });
 
 const MAX_DOC_BYTES = 30_000;
@@ -32,7 +34,7 @@ export default function assistantRoutes({ db, config, ai, storage }) {
   });
 
   r.get("/agents", (_req, res) => {
-    res.json(AGENTS.map(({ focus: _focus, ...a }) => a));
+    res.json(AGENTS);
   });
 
   r.get("/status", (_req, res) => res.json({ enabled: ai.enabled, provider: ai.provider }));
@@ -127,12 +129,14 @@ export default function assistantRoutes({ db, config, ai, storage }) {
         history,
         message: b.message,
         documents,
-        ctx: { userRole: req.user.role, projectName: project?.name, clientName: project?.company },
+        complexity: b.complexity,
+        ctx: { orgId: org, userId: req.user.id, userRole: req.user.role, projectName: project?.name, clientName: project?.company },
       });
     } catch (err) {
-      req.log?.warn({ err }, "AI provider call failed");
+      req.log?.warn({ err: { message: err.message, status: err.status } }, "AI service call failed");
       db.prepare("DELETE FROM messages WHERE id = ?").run(userMessageId); // keep history strictly alternating
-      throw new HttpError(502, "The AI provider could not complete this request. Please try again.");
+      const status = [503, 504].includes(err.status) ? err.status : 502;
+      throw new HttpError(status, err.userMessage || "The AI assistant could not complete this request. Please try again.");
     }
 
     const assistantId = crypto.randomUUID();

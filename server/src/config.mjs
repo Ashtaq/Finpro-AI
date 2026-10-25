@@ -33,10 +33,11 @@ const schema = z.object({
 
   SEED_DEMO: bool(false),
 
-  AI_PROVIDER: z.enum(["none", "anthropic"]).default("none"),
-  ANTHROPIC_API_KEY: z.string().optional(),
-  AI_MODEL: z.string().default("claude-sonnet-5-5"),
-  AI_MAX_TOKENS: z.coerce.number().int().positive().max(8192).default(1500),
+  // none = assistant says AI is not configured; service = AI_Assistant_Code (FastAPI) service.
+  AI_PROVIDER: z.enum(["none", "service", "anthropic"]).default("none"),
+  AI_SERVICE_URL: z.string().url().default("http://127.0.0.1:8090"),
+  AI_SERVICE_TOKEN: z.string().optional(),
+  AI_TIMEOUT_MS: z.coerce.number().int().positive().max(600_000).default(120_000),
 
   KYC_MODE: z.enum(["disabled", "mock", "sandbox", "digilocker"]).default("disabled"),
   // When true, Individual users must complete identity verification before using tax features.
@@ -67,7 +68,10 @@ export function loadConfig(env = process.env) {
     if (c.SEED_DEMO) problems.push("SEED_DEMO must not be enabled in production");
     if (c.KYC_MODE === "mock" || c.KYC_MODE === "sandbox") problems.push(`KYC_MODE=${c.KYC_MODE} is not allowed in production`);
   }
-  if (c.AI_PROVIDER === "anthropic" && !c.ANTHROPIC_API_KEY) problems.push("ANTHROPIC_API_KEY is required when AI_PROVIDER=anthropic");
+  if (c.AI_PROVIDER === "anthropic")
+    problems.push("AI_PROVIDER=anthropic was replaced by the AI_Assistant_Code service: set AI_PROVIDER=service and configure AI_TOP_PROVIDER=anthropic there");
+  if (isProd && c.AI_PROVIDER === "service" && (c.AI_SERVICE_TOKEN || "").length < 32)
+    problems.push("AI_SERVICE_TOKEN (32+ characters, same value as the AI service) is required in production");
   if (c.KYC_MODE === "digilocker" && !(c.DIGILOCKER_CLIENT_ID && c.DIGILOCKER_CLIENT_SECRET && c.DIGILOCKER_REDIRECT_URI))
     problems.push("DIGILOCKER_CLIENT_ID, DIGILOCKER_CLIENT_SECRET and DIGILOCKER_REDIRECT_URI are required when KYC_MODE=digilocker");
   if (problems.length) throw new Error(`Invalid configuration: ${problems.join("; ")}`);
@@ -99,11 +103,19 @@ export function loadConfig(env = process.env) {
     sessionTtlMs: c.SESSION_TTL_HOURS * 3600 * 1000,
     cookieSecure: c.COOKIE_SECURE,
     seedDemo: c.SEED_DEMO,
-    ai: { provider: c.AI_PROVIDER, apiKey: c.ANTHROPIC_API_KEY, model: c.AI_MODEL, maxTokens: c.AI_MAX_TOKENS },
+    ai: {
+      provider: c.AI_PROVIDER,
+      serviceUrl: c.AI_SERVICE_URL.replace(/\/$/, ""),
+      serviceToken: c.AI_SERVICE_TOKEN || DEV_AI_SERVICE_TOKEN,
+      timeoutMs: c.AI_TIMEOUT_MS,
+    },
     kyc: kycConfig(c, appOrigins[0]),
     itr: { provider: c.ITR_PROVIDER },
   };
 }
+
+// Used only outside production when AI_SERVICE_TOKEN is unset; the AI service has the same default.
+export const DEV_AI_SERVICE_TOKEN = "finpro-dev-ai-token";
 
 export const SANDBOX_CLIENT = { id: "finpro-sandbox-client", secret: "finpro-sandbox-secret" };
 

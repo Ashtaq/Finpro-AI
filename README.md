@@ -18,12 +18,14 @@ Node 22 · Express 5 API  (server/src)
    ├── auth: scrypt passwords, server-side sessions, RBAC, per-org tenant isolation
    ├── security: helmet/CSP/HSTS, CSRF origin check, rate limits, zod validation
    ├── storage: SQLite (WAL, versioned migrations) + private file store
-   ├── AI: provider abstraction (Anthropic Claude) — disabled unless configured
+   ├── AI: calls the AI_Assistant_Code service — disabled unless configured
+   │     └── FastAPI (AI_Assistant_Code/): routes each question to a cheap model
+   │         (Ollama locally / hosted open-source in prod) or a top model (Claude …)
    ├── KYC: DigiLocker OAuth2/PKCE adapter — disabled unless configured
    └── ITR: deterministic draft checks; e-filing blocked until an ERI adapter exists
 ```
 
-One container serves both the API (`/api/*`) and the built SPA.
+One container serves both the API (`/api/*`) and the built SPA. The optional AI service runs as a second, internal-only container.
 
 ## Quick start (development)
 
@@ -45,6 +47,9 @@ npm run dev:full
 | Command                           | What it does                                       |
 | --------------------------------- | -------------------------------------------------- |
 | `npm run dev:full`                | Web + API with reload                              |
+| `npm run dev:all`                 | Web + API + AI service with reload                 |
+| `npm run ai:setup`                | One-time Python setup for the AI service           |
+| `npm run test:ai`                 | AI service tests and lint (pytest + ruff)          |
 | `npm run check`                   | Lint, type-check, API tests and production build   |
 | `npm test`                        | API test suite (auth, RBAC, tenancy, uploads, ITR) |
 | `npm run build`                   | Build the SPA into `dist/`                         |
@@ -97,6 +102,20 @@ npm run dev:full
 
 The simulator runs the same OAuth 2.0 + PKCE flow and document APIs as real DigiLocker, so switching to production only means `KYC_MODE=digilocker` plus partner credentials. `sandbox` and `mock` modes are refused when `NODE_ENV=production`.
 
+## AI assistant (local)
+
+The assistant lives in [`AI_Assistant_Code/`](AI_Assistant_Code/README.md) (Python, FastAPI). In development it uses a free local model through Ollama:
+
+```bash
+brew install ollama && ollama serve     # or open the Ollama app
+ollama pull qwen3:8b
+npm run ai:setup                        # once
+echo "AI_PROVIDER=service" >> .env
+npm run dev:all
+```
+
+Simple questions go to the fast model; complex ones (or **Deep analysis** in the chat) go to the top model when `AI_TOP_PROVIDER` is configured. Each answer shows which model replied.
+
 ## Troubleshooting (local dev)
 
 | Symptom                                                                                                                 | Fix                                                                                                                                                                  |
@@ -104,4 +123,5 @@ The simulator runs the same OAuth 2.0 + PKCE flow and document APIs as real Digi
 | `node -v` shows < 22, `bad option: --env-file-if-exists`, or `better-sqlite3` build errors (`'climits' file not found`) | Put Node 22+ first on PATH (Homebrew: `/opt/homebrew/opt/node@22/bin`), then `rm -rf node_modules server/node_modules && npm install && npm --prefix server install` |
 | `✖ Finpro dev environment is not ready`                                                                                 | Follow the printed command — usually reinstalling after `git pull` / branch switch                                                                                   |
 | `[vite] http proxy error … ECONNREFUSED 127.0.0.1:8787`                                                                 | The API is not running. Check the `[api]` lines above it; switching branches while `dev:full` runs can leave stale dependencies — stop, reinstall, restart           |
+| "The AI service is not running"                                                                                         | Run `npm run ai:setup` once, then `npm run dev:all` (not `dev:full`). Check the `[ai]` lines for Ollama warnings                                                     |
 | Demo login fails                                                                                                        | Demo users are created only on an empty database with `SEED_DEMO=true`: `rm -rf server/data` and restart                                                             |

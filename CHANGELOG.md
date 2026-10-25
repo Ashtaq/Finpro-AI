@@ -1,5 +1,24 @@
 # Changelog
 
+## 2.1.0 — 2026-10-25 — AI assistant service
+
+### Added
+
+- `AI_Assistant_Code/`: FastAPI service that owns the AI assistant — prompts, model routing, PII masking, caching and fallback.
+- Two model tiers: a fast tier (Ollama locally, a hosted open-source model through any OpenAI-compatible API in production) and a top tier (Claude or any OpenAI-compatible model) for complex questions.
+- Rule-based complexity router with reasons in every response; per-organization daily cap on top-model calls.
+- Reversible masking of PAN, Aadhaar, mobile numbers and e-mails before any hosted model call.
+- **Deep analysis** toggle in the chat and the answering model shown under each reply.
+- `npm run ai:setup`, `npm run dev:ai`, `npm run dev:all`, `npm run test:ai`; Compose profiles `ai` and `ollama`; CI job for the service.
+
+### Changed
+
+- `AI_PROVIDER=anthropic` is replaced by `AI_PROVIDER=service`; model keys now live in the AI service settings.
+
+### Fixed
+
+- AI Assistant was squeezed into a 240px column on screens narrower than 1180px.
+
 ## 2.0.0 — 2026-10-24 — Production hardening
 
 ### Fixed
