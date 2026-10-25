@@ -218,6 +218,8 @@ export default function assistantRoutes({ db, config, ai, storage }) {
           if (event === "meta") {
             model = data.provider ? `${data.provider}/${data.model}` : data.model;
             send("meta", { model });
+          } else if (event === "status") {
+            send("status", { phase: data.phase });
           } else if (event === "delta") {
             partial += data.text;
             send("delta", { text: data.text });

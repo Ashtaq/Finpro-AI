@@ -34,6 +34,7 @@ export default function AIAssistant() {
   const [sending, setSending] = useState(false);
   const [deep, setDeep] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
+  const [phase, setPhase] = useState<"waiting" | "reasoning">("waiting");
   const [error, setError] = useState("");
   const end = useRef<HTMLDivElement>(null);
   const fileInput = useRef<HTMLInputElement>(null);
@@ -92,6 +93,7 @@ export default function AIAssistant() {
       { id: pendingId, role: "assistant", content: "", createdAt: new Date().toISOString(), pending: true },
     ]);
     setSending(true);
+    setPhase("waiting");
     const controller = new AbortController();
     abortRef.current = controller;
     const update = (patch: Partial<ChatMessage>) => setMessages((m) => m.map((x) => (x.id === pendingId ? { ...x, ...patch } : x)));
@@ -118,9 +120,10 @@ export default function AIAssistant() {
           complexity: deep ? "top" : "auto",
         },
         (event, raw) => {
-          const data = raw as { conversationId?: string; text?: string; model?: string; message?: ChatMessage; error?: string };
+          const data = raw as { conversationId?: string; text?: string; model?: string; message?: ChatMessage; error?: string; phase?: string };
           if (event === "start" && data.conversationId) remember(data.conversationId);
           else if (event === "meta") update({ model: data.model });
+          else if (event === "status") setPhase("reasoning");
           else if (event === "delta" && data.text) {
             streamed += data.text;
             update({ content: streamed });
@@ -248,7 +251,7 @@ export default function AIAssistant() {
               <div className="chat-bubble">
                 {m.role === "assistant" && <div className="assistant-label">{agent?.name || "Assistant"}</div>}
                 <div className="chat-content">
-                  {m.content || (m.pending ? "Thinking…" : "")}
+                  {m.content || (m.pending ? <Waiting since={m.createdAt} phase={phase} /> : "")}
                   {m.pending && m.content && <span className="chat-caret" aria-hidden="true" />}
                 </div>
                 {m.role === "assistant" && !m.pending && (
@@ -369,5 +372,21 @@ export default function AIAssistant() {
         </div>
       </Modal>
     </div>
+  );
+}
+
+/** "Thinking… 12s" while the model has not written anything yet, so a slow local model visibly makes progress. */
+function Waiting({ since, phase }: { since: string; phase: "waiting" | "reasoning" }) {
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    const t = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(t);
+  }, []);
+  const seconds = Math.max(0, Math.round((now - new Date(since).getTime()) / 1000));
+  return (
+    <span className="muted">
+      {phase === "reasoning" ? "Reasoning" : "Thinking"}… {seconds >= 3 ? `${seconds}s` : ""}
+      {seconds >= 20 && phase === "waiting" && <span className="waiting-hint"> — the first answer can take longer while the model loads.</span>}
+    </span>
   );
 }

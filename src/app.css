@@ -305,3 +305,6 @@
   background: #2b3a55;
   color: #fff;
 }
+.waiting-hint {
+  font-size: 11px;
+}
