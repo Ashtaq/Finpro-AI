@@ -14,6 +14,7 @@ try {
   process.exit(1);
 }
 const logger = createLogger(config);
+logger.info({ dataDir: config.dataDir, kyc: config.kyc.mode }, "Starting Finpro API");
 const db = openDatabase(path.join(config.dataDir, "finpro.db"));
 
 if (config.seedDemo) {

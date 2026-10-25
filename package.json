@@ -9,7 +9,7 @@
   "scripts": {
     "dev": "vite",
     "predev:api": "node scripts/preflight.mjs",
-    "dev:api": "npm --prefix server run dev",
+    "dev:api": "node scripts/dev-api.mjs",
     "predev:full": "node scripts/preflight.mjs",
     "dev:full": "concurrently -k -n web,api -c blue,green \"npm run dev\" \"npm run dev:api\"",
     "build": "tsc -b && vite build",
