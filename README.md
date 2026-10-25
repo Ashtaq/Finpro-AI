@@ -73,6 +73,30 @@ See [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md). Read [docs/PRODUCTION-READINESS.md
 - [SECURITY.md](SECURITY.md) — security model and vulnerability reporting
 - [CHANGELOG.md](CHANGELOG.md)
 
+## Testing Aadhaar + PAN verification (DigiLocker sandbox)
+
+Run the API with the built-in DigiLocker simulator:
+
+```bash
+echo "KYC_MODE=sandbox" >> .env     # add SEED_DEMO=true too if you want demo data
+npm run dev:full
+```
+
+1. Sign up as **Individual** with one of these test identities (name, PAN and DOB must match):
+
+   | Name         | PAN        | DOB        | Result                       |
+   | ------------ | ---------- | ---------- | ---------------------------- |
+   | Rahul Verma  | ABCPV1234K | 1990-05-15 | verified                     |
+   | Priya Sharma | BQSPS5678L | 1988-11-02 | verified                     |
+   | Amit Kumar   | CTKPK9012M | 1995-01-20 | fails — no PAN in DigiLocker |
+
+   Or sign up with any details and choose **Custom test identity** on the DigiLocker screen.
+
+2. Click **Verify with DigiLocker** → pick the account → OTP **123456** → **Allow**.
+3. You return to Finpro verified (or with the failure reason). Assets, ITR and Documents unlock after verification.
+
+The simulator runs the same OAuth 2.0 + PKCE flow and document APIs as real DigiLocker, so switching to production only means `KYC_MODE=digilocker` plus partner credentials. `sandbox` and `mock` modes are refused when `NODE_ENV=production`.
+
 ## Troubleshooting (local dev)
 
 | Symptom                                                                                                                 | Fix                                                                                                                                                                  |

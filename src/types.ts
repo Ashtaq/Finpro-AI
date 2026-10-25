@@ -31,13 +31,28 @@ export interface User {
   active: boolean;
   createdAt: string;
   lastLoginAt?: string;
+  kycStatus?: KycStatus;
+}
+
+export type KycStatus = "NOT_STARTED" | "PENDING" | "VERIFIED" | "FAILED";
+
+export interface KycStatusInfo {
+  mode: Meta["kyc"]["mode"];
+  enabled: boolean;
+  required: boolean;
+  status: KycStatus;
+  verifiedAt: string | null;
+  aadhaarLast4: string | null;
+  panMasked: string | null;
+  hasDob: boolean;
+  lastFailure: { reason: string; at: string } | null;
 }
 
 export interface Meta {
   version: string;
   demo: boolean;
   ai: { enabled: boolean };
-  kyc: { enabled: boolean; mode: string };
+  kyc: { enabled: boolean; required: boolean; mode: "disabled" | "mock" | "sandbox" | "digilocker" };
   itrFiling: { enabled: boolean };
   maxUploadBytes: number;
 }

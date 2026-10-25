@@ -38,7 +38,9 @@ const schema = z.object({
   AI_MODEL: z.string().default("claude-sonnet-5-5"),
   AI_MAX_TOKENS: z.coerce.number().int().positive().max(8192).default(1500),
 
-  KYC_MODE: z.enum(["disabled", "mock", "digilocker"]).default("disabled"),
+  KYC_MODE: z.enum(["disabled", "mock", "sandbox", "digilocker"]).default("disabled"),
+  // When true, Individual users must complete identity verification before using tax features.
+  KYC_REQUIRED: bool(true),
   DIGILOCKER_CLIENT_ID: z.string().optional(),
   DIGILOCKER_CLIENT_SECRET: z.string().optional(),
   DIGILOCKER_REDIRECT_URI: z.string().optional(),
@@ -63,7 +65,7 @@ export function loadConfig(env = process.env) {
     if (appOrigins.some((o) => o.startsWith("http://") && !o.includes("localhost"))) problems.push("APP_ORIGIN must use https in production");
     if (!c.COOKIE_SECURE && appOrigins.every((o) => o.startsWith("https://"))) c.COOKIE_SECURE = true;
     if (c.SEED_DEMO) problems.push("SEED_DEMO must not be enabled in production");
-    if (c.KYC_MODE === "mock") problems.push("KYC_MODE=mock is not allowed in production");
+    if (c.KYC_MODE === "mock" || c.KYC_MODE === "sandbox") problems.push(`KYC_MODE=${c.KYC_MODE} is not allowed in production`);
   }
   if (c.AI_PROVIDER === "anthropic" && !c.ANTHROPIC_API_KEY) problems.push("ANTHROPIC_API_KEY is required when AI_PROVIDER=anthropic");
   if (c.KYC_MODE === "digilocker" && !(c.DIGILOCKER_CLIENT_ID && c.DIGILOCKER_CLIENT_SECRET && c.DIGILOCKER_REDIRECT_URI))
@@ -98,12 +100,35 @@ export function loadConfig(env = process.env) {
     cookieSecure: c.COOKIE_SECURE,
     seedDemo: c.SEED_DEMO,
     ai: { provider: c.AI_PROVIDER, apiKey: c.ANTHROPIC_API_KEY, model: c.AI_MODEL, maxTokens: c.AI_MAX_TOKENS },
-    kyc: {
-      mode: c.KYC_MODE,
-      clientId: c.DIGILOCKER_CLIENT_ID,
-      clientSecret: c.DIGILOCKER_CLIENT_SECRET,
-      redirectUri: c.DIGILOCKER_REDIRECT_URI,
-    },
+    kyc: kycConfig(c, appOrigins[0]),
     itr: { provider: c.ITR_PROVIDER },
   };
+}
+
+export const SANDBOX_CLIENT = { id: "finpro-sandbox-client", secret: "finpro-sandbox-secret" };
+
+function kycConfig(c, appUrl) {
+  const enabled = c.KYC_MODE !== "disabled";
+  const base = { mode: c.KYC_MODE, enabled, required: enabled && c.KYC_REQUIRED };
+  if (c.KYC_MODE === "sandbox") {
+    // Local DigiLocker simulator served by this API (see routes/digilocker-sandbox.mjs).
+    // Browser-facing URLs go through the app origin (Vite proxies /api in dev);
+    // server-to-server calls hit this process directly.
+    const internal = `http://127.0.0.1:${c.PORT}/api/sandbox/digilocker`;
+    return {
+      ...base,
+      clientId: SANDBOX_CLIENT.id,
+      clientSecret: SANDBOX_CLIENT.secret,
+      redirectUri: `${appUrl}/api/kyc/digilocker/callback`,
+      urls: {
+        authorize: `${appUrl}/api/sandbox/digilocker/authorize`,
+        token: `${internal}/token`,
+        user: `${internal}/user`,
+        issuedDocs: `${internal}/files/issued`,
+        docXml: `${internal}/xml`,
+        aadhaarXml: `${internal}/xml/eaadhaar`,
+      },
+    };
+  }
+  return { ...base, clientId: c.DIGILOCKER_CLIENT_ID, clientSecret: c.DIGILOCKER_CLIENT_SECRET, redirectUri: c.DIGILOCKER_REDIRECT_URI };
 }

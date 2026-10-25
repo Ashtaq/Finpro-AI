@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 import {
+  BadgeCheck,
   BarChart3,
   BookOpen,
   CalendarClock,
@@ -22,7 +23,7 @@ import {
   Users,
   X,
 } from "lucide-react";
-import { Permission, useAuth } from "../context/AuthContext";
+import { needsKyc, Permission, useAuth } from "../context/AuthContext";
 
 type Item = [path: string, label: string, icon: LucideIcon, permission: Permission];
 const professionalGroups: { title: string; items: Item[] }[] = [
@@ -68,7 +69,7 @@ const individualGroups: { title: string; items: Item[] }[] = [
 ];
 
 export default function AppLayout() {
-  const { user, logout, can } = useAuth();
+  const { user, logout, can, meta } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const [menuOpen, setMenuOpen] = useState(false);
@@ -110,6 +111,15 @@ export default function AppLayout() {
           </div>
         </div>
         <nav className="nav">
+          {needsKyc(user, meta) && (
+            <div className="nav-group">
+              <div className="nav-label">Get started</div>
+              <NavLink to="/verify-identity" className={({ isActive }) => (isActive ? "nav-item active" : "nav-item")}>
+                <BadgeCheck size={17} />
+                <span>Verify identity</span>
+              </NavLink>
+            </div>
+          )}
           {groups.map((group) => {
             const visible = group.items.filter(([, , , p]) => can(p));
             if (!visible.length) return null;

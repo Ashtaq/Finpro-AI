@@ -5,7 +5,7 @@ import { audit } from "../lib/audit.mjs";
 import { badRequest, conflict, HttpError, notFound } from "../lib/errors.mjs";
 import { toAsset, toItr } from "../lib/mappers.mjs";
 import { isoDate, pan, parse, requiredText, text } from "../lib/validate.mjs";
-import { requireRole } from "../middleware/auth.mjs";
+import { requireKyc, requireRole } from "../middleware/auth.mjs";
 import { ITR_TYPES, payloadSchema, validAssessmentYear, validateItr } from "../services/itr.mjs";
 
 const profileSchema = z
@@ -45,6 +45,8 @@ const toProfile = (p) => ({
 export default function individualRoutes({ db, config }) {
   const r = Router();
   r.use(requireRole("Individual"));
+  const kyc = requireKyc(config);
+  r.use(["/assets", "/itr"], kyc);
   const uid = (req) => req.user.id;
   const event = (itrId, type, status, metadata = {}) =>
     db
@@ -62,6 +64,8 @@ export default function individualRoutes({ db, config }) {
     const b = parse(profileSchema, req.body);
     const current = db.prepare("SELECT * FROM individual_profiles WHERE user_id = ?").get(uid(req));
     if (current?.kyc_status === "VERIFIED" && b.pan !== undefined && b.pan !== current.pan) throw conflict("PAN is locked after identity verification.");
+    if (current?.kyc_status === "VERIFIED" && b.dob !== undefined && b.dob !== current.dob)
+      throw conflict("Date of birth is locked after identity verification.");
     db.prepare(
       `INSERT INTO individual_profiles(user_id, pan, dob, residential_status, address, updated_at) VALUES (?,?,?,?,?,?)
        ON CONFLICT(user_id) DO UPDATE SET pan = COALESCE(excluded.pan, pan), dob = COALESCE(excluded.dob, dob),

@@ -2,7 +2,7 @@ import { FormEvent, useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { ShieldCheck, Sparkles } from "lucide-react";
 import { ErrorBox } from "../components/ui";
-import { homePath, useAuth } from "../context/AuthContext";
+import { landingPath, useAuth } from "../context/AuthContext";
 import { errorMessage } from "../lib/api";
 
 const DEMO = [
@@ -43,7 +43,7 @@ export default function Login() {
     setBusy(true);
     try {
       const user = await login(email, password);
-      navigate(homePath(user.role), { replace: true });
+      navigate(landingPath(user, meta), { replace: true });
     } catch (err) {
       setError(errorMessage(err, "Sign in failed."));
     } finally {
