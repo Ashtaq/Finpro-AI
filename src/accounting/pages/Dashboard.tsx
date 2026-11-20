@@ -71,8 +71,8 @@ export default function Dashboard() {
                 <YAxis fontSize={10} tickFormatter={(v: number) => (Math.abs(v) >= 1e5 ? `${(v / 1e5).toFixed(1)}L` : String(v))} />
                 <Tooltip formatter={(v) => `₹${Number(v).toLocaleString("en-IN")}`} />
                 <Legend />
-                <Bar dataKey="Income" fill="#1b64e6" radius={[4, 4, 0, 0]} />
-                <Bar dataKey="Expenses" fill="#f0a14a" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="Income" fill="#3d5afe" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="Expenses" fill="#12c2b9" radius={[4, 4, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           </div>

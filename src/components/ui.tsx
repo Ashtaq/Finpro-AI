@@ -35,7 +35,7 @@ export function MetricCard({ label, value, delta, icon }: { label: string; value
     <div className="metric-card">
       <div className="metric-icon">{icon}</div>
       <div>
-        <div className="eyebrow">{label}</div>
+        <div className="metric-label">{label}</div>
         <div className="metric-value">{value}</div>
         {delta && <div className="metric-delta">{delta}</div>}
       </div>

@@ -397,7 +397,7 @@ export default function ITRFiling() {
   return (
     <div className="page">
       <PageHeader
-        eyebrow="ITR PREPARATION"
+        eyebrow="ITR preparation"
         title="Income Tax Returns"
         description="Prepare and check your return with reviewable figures."
         action={

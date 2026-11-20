@@ -18,8 +18,8 @@ export function AuthBrand() {
         <Sparkles size={22} />
       </div>
       <div>
-        <div className="brand-name">FINPRO AI</div>
-        <div className="brand-sub">FINANCE WORKSPACE</div>
+        <div className="brand-name">Finpro AI</div>
+        <div className="brand-sub">Finance workspace</div>
       </div>
     </div>
   );
@@ -58,7 +58,7 @@ export default function Login() {
         <div className="auth-icon">
           <ShieldCheck size={23} />
         </div>
-        <div className="eyebrow">SECURE WORKSPACE</div>
+        <div className="eyebrow">Secure workspace</div>
         <h1>Sign in to Finpro AI</h1>
         <p className="auth-muted">Your account type decides the workspace you see.</p>
         <form onSubmit={submit} className="form-stack">

@@ -156,7 +156,7 @@ export default function Gst() {
                           <th>Particulars</th>
                           {heads.map((h) => (
                             <th key={h} style={{ textAlign: "right" }}>
-                              {h.toUpperCase()}
+                              {h === "taxable" ? "Taxable" : h.toUpperCase()}
                             </th>
                           ))}
                         </tr>

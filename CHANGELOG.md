@@ -1,5 +1,20 @@
 # Changelog
 
+## 2.2.1 — 2026-11-20 — Interface refresh
+
+### Changed
+
+- New visual system for all workspaces (Individual, Finance/Business, Professional): deep-ink navigation with an aqua "you are here" signal, ultramarine actions, calm white work surfaces, and status colours with readable contrast.
+- Typography: Sora for headings and figures, IBM Plex Sans for the interface (replacing Inter / Space Grotesk). Smallest text raised from 8–10 px to 11.5–12 px; all-caps labels replaced with sentence case.
+- One stylesheet (`src/styles.css`) built on design tokens replaces `styles.css` + `individual.css` + `app.css`; the accounting stylesheet now uses the same tokens.
+- Every text input, select and date field shares one 40 px height, border and focus ring, so fields line up across forms (signup confirm password, settings date of birth, AI assistant selectors).
+- Metric cards balance their rows by count and available width (6 → 3 + 3, 4 → 4 or 2 + 2) instead of leaving gaps; on phones they stack two per row.
+- Consistent page, panel and table spacing; panel header actions no longer wrap mid-group; notices get even spacing; charts use the new palette.
+
+### Fixed
+
+- The Individual "Return readiness" progress bar was invisible, and AI assistant attachment chips and task drag handles were unstyled.
+
 ## 2.2.0 — 2026-11-20 — Professional accounting & financial management
 
 ### Added

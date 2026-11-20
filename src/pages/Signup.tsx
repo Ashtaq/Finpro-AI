@@ -70,7 +70,7 @@ export default function Signup() {
         <Link className="back-link" to="/login">
           <ArrowLeft size={15} /> Back to sign in
         </Link>
-        <div className="eyebrow">CREATE ACCOUNT</div>
+        <div className="eyebrow">Create account</div>
         <h1>Choose your workspace</h1>
         <div className="account-type-grid" role="radiogroup" aria-label="Account type">
           {TYPES.map((t) => (

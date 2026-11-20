@@ -42,7 +42,7 @@ export default function KnowledgeBase() {
   return (
     <>
       <PageHeader
-        eyebrow="ORGANIZATION KNOWLEDGE"
+        eyebrow="Organization knowledge"
         title="Knowledge Base"
         description="Internal SOPs, templates, policies and methodologies for your team."
         action={
