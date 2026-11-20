@@ -1,0 +1,424 @@
+/* Accounting workspace — extends the Finpro design system (styles.css / app.css). */
+
+.acct-nav {
+  position: sticky;
+  top: 68px;
+  z-index: 10;
+  background: #f6f8fb;
+  padding-top: 4px;
+}
+.company-select {
+  min-width: 260px;
+  border: 1px solid #dce4ee;
+  border-radius: 9px;
+  padding: 9px 10px;
+  background: #fff;
+  font-size: 12px;
+}
+
+.acct-table {
+  margin-bottom: 14px;
+  overflow-x: auto;
+}
+.acct-table table {
+  font-size: 12px;
+}
+.acct-table td,
+.acct-table th {
+  padding: 9px 12px;
+}
+.acct-table tr.clickable {
+  cursor: pointer;
+}
+.acct-table tr.clickable:hover td {
+  background: #f6f9fe;
+}
+.acct-table input,
+.acct-table select {
+  border: 1px solid #dbe3ec;
+  border-radius: 7px;
+  padding: 7px 8px;
+  font-size: 12px;
+  background: #fff;
+  min-width: 0;
+  max-width: 100%;
+}
+.line-table td {
+  vertical-align: top;
+}
+.pager {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  font-size: 11px;
+  color: #6b7a90;
+}
+.pager span {
+  margin-right: auto;
+}
+
+.amount {
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.negative,
+.amount.negative {
+  color: #b54040;
+}
+.total-row td {
+  font-weight: 700;
+  background: #f8fafd;
+  border-top: 1px solid #dfe6ef;
+}
+.tree-row.depth-0 td {
+  background: #fbfcfe;
+}
+.tree-row.kind-info td {
+  color: #7a899f;
+  font-style: italic;
+}
+.tree-toggle {
+  border: 0;
+  background: none;
+  color: #7a899f;
+  padding: 0 4px 0 0;
+  vertical-align: middle;
+}
+.tree-spacer {
+  display: inline-block;
+  width: 17px;
+}
+
+.kv-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+  margin-bottom: 14px;
+}
+.kv-grid > div {
+  background: #fff;
+  border: 1px solid #e4e9f1;
+  border-radius: 10px;
+  padding: 12px;
+}
+.kv-grid > div > span {
+  display: block;
+  font-size: 10px;
+  color: #7b899e;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+.kv-grid strong {
+  display: block;
+  margin-top: 5px;
+  font-size: 14px;
+}
+
+.modal.modal-wide {
+  width: min(1180px, 100%);
+  max-height: calc(100vh - 36px);
+  overflow: auto;
+}
+.voucher-form {
+  display: grid;
+  gap: 14px;
+}
+.form-grid.four {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+.mini-stack {
+  display: grid;
+  gap: 5px;
+  min-width: 140px;
+}
+.inline-pair {
+  display: flex;
+  gap: 5px;
+}
+.mini-actions {
+  display: inline-flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.modal-actions.wrap {
+  flex-wrap: wrap;
+}
+.approval-note {
+  width: 100%;
+  margin-top: 8px;
+  border: 1px solid #dbe3ec;
+  border-radius: 8px;
+  padding: 9px;
+}
+.history {
+  border-left: 2px solid #e1e8f1;
+  padding-left: 10px;
+  margin: 10px 0;
+  display: grid;
+  gap: 3px;
+}
+
+.chip-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 10px 0 14px;
+}
+.chip {
+  border: 1px solid #d7e3f5;
+  background: #f3f8ff;
+  color: #2a5ea8;
+  border-radius: 999px;
+  padding: 6px 10px;
+  font-size: 11px;
+  font-weight: 600;
+  margin: 2px;
+}
+.chip:hover {
+  background: #e6f0ff;
+}
+.filter-row {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+.filter-row select,
+.filter-row input[type="date"],
+.toolbar > input[type="month"],
+.toolbar input[type="date"],
+.page-actions input[type="date"] {
+  border: 1px solid #dce4ee;
+  border-radius: 9px;
+  padding: 8px 10px;
+  background: #fff;
+  font-size: 12px;
+}
+.truncate {
+  display: inline-block;
+  max-width: 280px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  vertical-align: bottom;
+}
+.grow {
+  flex: 1;
+  min-width: 240px;
+}
+.inline-form.panel {
+  margin-bottom: 14px;
+  align-items: center;
+}
+.section-title {
+  font-family: "Space Grotesk";
+  font-size: 15px;
+  margin: 18px 0 10px;
+}
+.sub-head {
+  font-family: "Space Grotesk";
+  font-size: 13px;
+  margin: 14px 0 6px;
+}
+
+.report-layout {
+  display: grid;
+  grid-template-columns: 210px minmax(0, 1fr);
+  gap: 18px;
+  align-items: start;
+}
+.report-menu {
+  padding: 10px;
+  position: sticky;
+  top: 130px;
+}
+.nav-label.dark {
+  color: #8391a5;
+  padding: 10px 8px 4px;
+}
+.report-link {
+  display: block;
+  width: 100%;
+  text-align: left;
+  border: 0;
+  background: none;
+  padding: 7px 8px;
+  border-radius: 7px;
+  font-size: 12px;
+  color: #4b5b72;
+}
+.report-link:hover {
+  background: #f1f5fb;
+}
+.report-link.active {
+  background: #e6f0ff;
+  color: #1b5cc9;
+  font-weight: 700;
+}
+.reconcile {
+  display: inline-block;
+  font-size: 12px;
+  font-weight: 700;
+  padding: 7px 10px;
+  border-radius: 8px;
+  margin-bottom: 12px;
+}
+.reconcile.ok {
+  background: #e7f7ee;
+  color: #1b8650;
+}
+.reconcile.bad {
+  background: #ffe9e9;
+  color: #c43e3e;
+}
+
+.bank-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 10px;
+  margin-bottom: 14px;
+}
+.bank-card {
+  text-align: left;
+  border: 1px solid #e1e8f0;
+  background: #fff;
+  border-radius: 12px;
+  padding: 12px 14px;
+  display: grid;
+  gap: 4px;
+  font-size: 11px;
+  color: #5b6b82;
+}
+.bank-card strong {
+  color: #1e2b40;
+  font-size: 13px;
+}
+.bank-card.active {
+  border-color: #7ba7ed;
+  box-shadow: 0 6px 18px rgba(43, 106, 202, 0.1);
+}
+
+.code-block {
+  background: #0f1a2c;
+  color: #d8e5f7;
+  padding: 12px;
+  border-radius: 9px;
+  font-size: 11px;
+  overflow: auto;
+  max-height: 360px;
+}
+.explain-list {
+  margin: 0;
+  padding-left: 18px;
+  display: grid;
+  gap: 8px;
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+@media (max-width: 1180px) {
+  .form-grid.four,
+  .kv-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .report-layout {
+    grid-template-columns: 1fr;
+  }
+  .report-menu {
+    position: static;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+  }
+  .report-link {
+    width: auto;
+  }
+}
+@media (max-width: 760px) {
+  .form-grid.four,
+  .kv-grid {
+    grid-template-columns: 1fr;
+  }
+  .company-select {
+    min-width: 0;
+    width: 100%;
+  }
+  .acct-nav {
+    top: 68px;
+  }
+}
+
+@media print {
+  .sidebar,
+  .topbar,
+  .acct-nav,
+  .report-menu,
+  .page-actions,
+  .toolbar {
+    display: none !important;
+  }
+  .main-shell {
+    margin-left: 0;
+  }
+  .report-layout {
+    grid-template-columns: 1fr;
+  }
+}
+
+.line-table select {
+  width: 170px;
+}
+.line-table td:first-child select {
+  width: 150px;
+}
+.line-table input[aria-label="Description"] {
+  width: 150px;
+}
+.voucher-form .modal-actions .checkbox-label,
+.modal-actions .checkbox-label {
+  font-size: 12px;
+  margin-right: auto;
+  color: #4b5b72;
+}
+.form-grid .checkbox-label {
+  font-size: 12px;
+  color: #4b5b72;
+}
+
+/* Scoped overrides: app.css makes inline-form controls full width. */
+.acct .inline-form input:not([type="checkbox"]),
+.acct .inline-form select {
+  width: auto;
+  flex: 0 1 200px;
+}
+.acct .inline-form input.grow {
+  flex: 1 1 320px;
+}
+.acct .inline-form input[type="file"] {
+  flex: 1 1 260px;
+}
+.acct button.text-link {
+  border: 0;
+  background: none;
+  padding: 0;
+  cursor: pointer;
+}
+.acct .acct-table button.text-link {
+  font-size: 12px;
+  font-weight: 600;
+}
+.acct .page-header .page-actions {
+  flex-wrap: nowrap;
+  align-items: center;
+}
+.acct .page-header .company-select {
+  width: auto;
+  max-width: 360px;
+}
+@media (max-width: 760px) {
+  .acct .page-header .page-actions {
+    flex-wrap: wrap;
+  }
+}

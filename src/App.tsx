@@ -27,6 +27,7 @@ const Assets = lazy(() => import("./pages/Assets"));
 const ITRFiling = lazy(() => import("./pages/ITRFiling"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 const VerifyIdentity = lazy(() => import("./pages/VerifyIdentity"));
+const AccountingWorkspace = lazy(() => import("./accounting/AccountingWorkspace"));
 
 function FullScreenSpinner() {
   const { offline } = useAuth();
@@ -89,6 +90,7 @@ const guarded: [string, Permission, ReactNode][] = [
   ["individual", "individual", <IndividualDashboard />],
   ["assets", "assets", <Assets />],
   ["itr-filing", "itr", <ITRFiling />],
+  ["accounting/*", "accounting", <AccountingWorkspace />],
 ];
 
 export default function App() {

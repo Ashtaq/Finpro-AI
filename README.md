@@ -2,11 +2,11 @@
 
 Finance workspace for Indian finance professionals, small businesses and individual taxpayers.
 
-| Account type          | Who it's for                    | Workspace                                                                                                          |
-| --------------------- | ------------------------------- | ------------------------------------------------------------------------------------------------------------------ |
-| **Professional User** | CAs, CSs, auditors, CFAs        | Clients, projects, documents, tasks, compliance calendar, knowledge base, team, audit log, AI assistant, analytics |
-| **Finance User**      | Shop owners, freelancers, SMEs  | Projects, documents, tasks, AI assistant, financial analysis, reports                                              |
-| **Individual**        | Salaried / self-filing taxpayer | Asset register, tax documents, ITR preparation & pre-checks, AI assistant, personal summary                        |
+| Account type          | Who it's for                    | Workspace                                                                                                                                                 |
+| --------------------- | ------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Professional User** | CAs, CSs, auditors, CFAs        | Clients, **accounting & GST books per client**, projects, documents, tasks, compliance calendar, knowledge base, team, audit log, AI assistant, analytics |
+| **Finance User**      | Shop owners, freelancers, SMEs  | Projects, documents, tasks, AI assistant, financial analysis, reports                                                                                     |
+| **Individual**        | Salaried / self-filing taxpayer | Asset register, tax documents, ITR preparation & pre-checks, AI assistant, personal summary                                                               |
 
 ## Architecture
 
@@ -44,18 +44,18 @@ npm run dev:full
 
 ## Scripts
 
-| Command                           | What it does                                       |
-| --------------------------------- | -------------------------------------------------- |
-| `npm run dev:full`                | Web + API with reload                              |
-| `npm run dev:all`                 | Web + API + AI service with reload                 |
-| `npm run ai:setup`                | One-time Python setup for the AI service           |
-| `npm run test:ai`                 | AI service tests and lint (pytest + ruff)          |
-| `npm run check`                   | Lint, type-check, API tests and production build   |
-| `npm test`                        | API test suite (auth, RBAC, tenancy, uploads, ITR) |
-| `npm run build`                   | Build the SPA into `dist/`                         |
-| `npm start`                       | Run the API (serves `dist/` when `STATIC_DIR` set) |
-| `npm --prefix server run migrate` | Apply/list database migrations                     |
-| `docker compose up --build`       | Production-like container on http://localhost:8787 |
+| Command                           | What it does                                                   |
+| --------------------------------- | -------------------------------------------------------------- |
+| `npm run dev:full`                | Web + API with reload                                          |
+| `npm run dev:all`                 | Web + API + AI service with reload                             |
+| `npm run ai:setup`                | One-time Python setup for the AI service                       |
+| `npm run test:ai`                 | AI service tests and lint (pytest + ruff)                      |
+| `npm run check`                   | Lint, type-check, API tests and production build               |
+| `npm test`                        | API test suite (auth, RBAC, tenancy, uploads, ITR, accounting) |
+| `npm run build`                   | Build the SPA into `dist/`                                     |
+| `npm start`                       | Run the API (serves `dist/` when `STATIC_DIR` set)             |
+| `npm --prefix server run migrate` | Apply/list database migrations                                 |
+| `docker compose up --build`       | Production-like container on http://localhost:8787             |
 
 ## Configuration
 
@@ -74,6 +74,7 @@ See [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md). Read [docs/PRODUCTION-READINESS.md
 ## Project docs
 
 - [docs/BRD-HLD-LLD.md](docs/BRD-HLD-LLD.md) — product, architecture and design specification
+- [docs/ACCOUNTING.md](docs/ACCOUNTING.md) — accounting, GST, inventory, banking and payroll module (rules, schema, ER diagram, API)
 - [docs/ITR-FILING-SPEC.md](docs/ITR-FILING-SPEC.md) — ITR product and technical specification
 - [SECURITY.md](SECURITY.md) — security model and vulnerability reporting
 - [CHANGELOG.md](CHANGELOG.md)

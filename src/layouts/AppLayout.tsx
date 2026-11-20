@@ -4,6 +4,7 @@ import {
   BadgeCheck,
   BarChart3,
   BookOpen,
+  Calculator,
   CalendarClock,
   CheckSquare,
   ClipboardList,
@@ -32,6 +33,7 @@ const professionalGroups: { title: string; items: Item[] }[] = [
     items: [
       ["/", "Dashboard", LayoutDashboard, "dashboard"],
       ["/clients", "Clients", Users, "clients"],
+      ["/accounting", "Accounting", Calculator, "accounting"],
       ["/projects", "Projects", FolderKanban, "projects"],
       ["/ai-agents", "AI Agents", Sparkles, "ai"],
       ["/ai-assistant", "AI Assistant", MessageSquareText, "ai"],

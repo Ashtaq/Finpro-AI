@@ -19,7 +19,8 @@ export type Permission =
   | "settings"
   | "individual"
   | "assets"
-  | "itr";
+  | "itr"
+  | "accounting";
 
 // Mirrors server-side role checks; the server is the source of truth.
 const PERMISSIONS: Record<Role, Set<Permission>> = {
@@ -38,6 +39,7 @@ const PERMISSIONS: Record<Role, Set<Permission>> = {
     "team",
     "audit",
     "settings",
+    "accounting",
   ]),
   "Finance User": new Set(["dashboard", "projects", "documents", "ai", "analysis", "reports", "tasks", "analytics", "settings"]),
   Individual: new Set(["individual", "assets", "documents", "ai", "itr", "reports", "settings"]),

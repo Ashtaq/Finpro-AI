@@ -278,7 +278,7 @@ export default function miscRoutes(c, ctx) {
     acctAudit(db, req, { companyId: req.company.id, action: "ai.query", entityType: "AI", summary: b.question });
     res.json({ ...result, disclaimer: DISCLAIMER });
   });
-  c.post("/ai/extract-invoice", (req, res) => {
+  c.post("/ai/extract-invoice", async (req, res) => {
     const b = parse(z.object({ text: text(100000).optional(), documentId: id().optional() }), req.body);
     let content = b.text;
     if (!content && b.documentId) {
@@ -286,7 +286,7 @@ export default function miscRoutes(c, ctx) {
       if (!d) throw notFound("Document not found.");
       if (!/^text\/|csv|json/.test(d.mime_type))
         throw badRequest("Only text-based documents can be read here. Scanned images and PDFs need an OCR provider (not configured).");
-      content = ctx.storage.readText ? ctx.storage.readText(d.storage_key) : null;
+      content = await ctx.storage.readText(d.storage_key, 200_000).catch(() => null);
       if (!content) throw badRequest("Could not read the document text.");
     }
     if (!content) throw badRequest("Provide invoice text or a documentId.");
