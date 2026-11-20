@@ -10,6 +10,7 @@ import { loadSession } from "./middleware/auth.mjs";
 import { errorHandler, notFoundHandler } from "./middleware/errors.mjs";
 import { cors, originCheck } from "./middleware/security.mjs";
 import accountRoutes from "./routes/account.mjs";
+import accountingRoutes from "./routes/accounting/index.mjs";
 import assistantRoutes from "./routes/assistant.mjs";
 import authRoutes from "./routes/auth.mjs";
 import clientRoutes from "./routes/clients.mjs";
@@ -132,6 +133,7 @@ export function createApp({ db, config, logger, ai, storage, digilocker }) {
   api.use("/assistant", assistantRoutes(ctx));
   api.use("/individual", individualRoutes(ctx));
   api.use("/kyc", kycRoutes(ctx));
+  api.use("/accounting", accountingRoutes(ctx));
   if (config.kyc.mode === "sandbox") api.use("/sandbox/digilocker", digilockerSandboxRoutes(ctx));
   api.use("/", workspaceRoutes(ctx));
   api.use(notFoundHandler);

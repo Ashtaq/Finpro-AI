@@ -1,5 +1,20 @@
 # Changelog
 
+## 2.2.0 — 2026-11-20 — Professional accounting & financial management
+
+### Added
+
+- **Accounting** workspace for Professional Users (`/accounting`, `/api/accounting`): multi-client, multi-company double-entry books with the 28 reserved groups, ledgers, cost centres, financial years and configurable voucher numbering.
+- All voucher types (journal, payment, receipt, contra, sales, purchase, debit/credit notes, stock journal, delivery/receipt notes, payroll) with bill-wise tracking, maker-checker approval, immutable revision history, cancellation instead of deletion, recurring vouchers, printable invoices and attachments.
+- GST: automatic CGST/SGST/UTGST/IGST/cess, RCM, ITC, GSTR-1 and GSTR-3B preparation with exports, set-off, payments, GSTR-2B reconciliation, e-invoice (IRP JSON) and e-way bill payloads. TDS/TCS sections, deduction and deposit tracking.
+- Inventory integrated with accounts: godowns, batches/expiry/serials, FIFO and weighted-average valuation, BOM manufacturing, transfers, orders.
+- Reports with drill-down and PDF/Excel/CSV export: balance sheet, P&L, trading, cash flow, trial balance, day book, ledgers, AR/AP ageing, ratios, cost centres, budget vs actual, year comparison.
+- Banking: CSV/XLSX statement import with duplicate detection, auto/rule/manual matching, BRS, cheque register.
+- Payroll with effective-dated PF/ESI/PT/TDS rules, attendance, salary slips and payroll journal posting.
+- AI assistance (assistive only): natural-language queries, anomaly and audit-risk indicators, statement explanations, ledger suggestions, invoice text extraction.
+- Accounting roles (Admin/Accountant/Reviewer/Viewer), client-level restrictions, append-only accounting audit trail, company backup/restore.
+- Migration `002_accounting.sql` (58 tables) and 23 new API tests. See [docs/ACCOUNTING.md](docs/ACCOUNTING.md).
+
 ## 2.1.1 — 2026-10-26 — Streaming AI answers
 
 ### Added
