@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { Component, ErrorInfo, ReactNode, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { ArrowLeft } from "lucide-react";
 import { Badge, ErrorBox, Notice, Spinner } from "../../components/ui";
@@ -27,6 +27,12 @@ const REPORTS: [string, string, string][] = [
   ["receivables", "Receivables (AR)", "Outstanding"],
   ["payables", "Payables (AP)", "Outstanding"],
 ];
+const FY_SECTIONS: Record<string, string> = {
+  directIncome: "Direct income",
+  directExpenses: "Direct expenses",
+  indirectIncome: "Indirect income",
+  indirectExpenses: "Indirect expenses",
+};
 const POINT_IN_TIME = new Set(["balance-sheet", "receivables", "payables", "fy-comparison"]);
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
@@ -44,11 +50,17 @@ export default function Reports() {
   const budgets = useAsync(() => capi.get<{ id: string; name: string }[]>("/budgets"), [company.id]);
   const qs = new URLSearchParams({ from, to, ...(ledgerId ? { ledgerId } : {}), ...(budgetId ? { budgetId } : {}) }).toString();
   const needs = (report === "ledger" && !ledgerId) || (report === "budget-vs-actual" && !budgetId);
-  const data = useAsync(() => (needs ? Promise.resolve(null) : capi.get<any>(`/reports/${report}?${qs}`)), [report, qs, company.id]);
+  // Tag each response with the report it belongs to. While a new report loads, useAsync still holds the previous
+  // report's data, which has a different shape — rendering it with the new layout crashed the page.
+  const key = `${report}?${qs}`;
+  const data = useAsync(
+    () => (needs ? Promise.resolve(null) : capi.get<any>(`/reports/${report}?${qs}`).then((body) => ({ key, body }))),
+    [report, qs, company.id],
+  );
   const sheet = useVoucherSheet();
   const go = (r: string, extra: Record<string, string> = {}) => setParams({ report: r, ...extra });
   const drill = (id: string) => go("ledger", { ledgerId: id });
-  const d = data.data;
+  const d = data.data && data.data.key === key ? data.data.body : null;
 
   return (
     <div className="report-layout">
@@ -102,10 +114,12 @@ export default function Reports() {
           <Notice title="Choose what to show">
             {report === "ledger" ? "Select a ledger to view its statement." : "Select a budget, or create one under Settings › Budgets."}
           </Notice>
-        ) : data.loading && !d ? (
-          <Spinner />
         ) : d ? (
-          <ReportBody report={report} d={d} drill={drill} openVoucher={sheet.open} />
+          <ReportBoundary key={key} onRetry={data.reload}>
+            <ReportBody report={report} d={d} drill={drill} openVoucher={sheet.open} />
+          </ReportBoundary>
+        ) : data.loading ? (
+          <Spinner />
         ) : null}
       </section>
       <VoucherSheets sheet={sheet} onChange={() => void data.reload()} />
@@ -406,7 +420,7 @@ function ReportBody({ report, d, drill, openVoucher }: { report: string; d: any;
             rowKey={(r: any) => r.section + r.name}
             rows={[
               ...["directIncome", "directExpenses", "indirectIncome", "indirectExpenses"].flatMap((k) =>
-                d.profitAndLoss[k].map((r: any) => ({ ...r, section: k.replace(/([A-Z])/g, " $1") })),
+                d.profitAndLoss[k].map((r: any) => ({ ...r, section: FY_SECTIONS[k] })),
               ),
               { section: "Result", name: "Gross profit", ...d.profitAndLoss.grossProfit },
               { section: "Result", name: "Net profit", ...d.profitAndLoss.netProfit },
@@ -433,3 +447,26 @@ const ReconcileBadge = ({ ok, text }: { ok: boolean; text: string }) => (
     {ok ? "✓" : "!"} {text}
   </div>
 );
+
+/** Keeps a failure in one report from taking down the whole workspace. */
+class ReportBoundary extends Component<{ children: ReactNode; onRetry: () => void }, { error: Error | null }> {
+  state = { error: null as Error | null };
+  static getDerivedStateFromError(error: Error) {
+    return { error };
+  }
+  componentDidCatch(error: Error, info: ErrorInfo) {
+    console.error("Report render error", error, info.componentStack);
+  }
+  render() {
+    if (!this.state.error) return this.props.children;
+    return (
+      <ErrorBox
+        message="This report could not be displayed. Try again, or pick another period."
+        onRetry={() => {
+          this.setState({ error: null });
+          this.props.onRetry();
+        }}
+      />
+    );
+  }
+}
