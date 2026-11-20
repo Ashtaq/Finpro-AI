@@ -62,7 +62,7 @@ export default function Assets() {
   return (
     <div className="page">
       <PageHeader
-        eyebrow="PERSONAL FINANCES"
+        eyebrow="Personal finances"
         title="My Assets"
         description="A year-round register of assets and liabilities to support tax preparation."
         action={

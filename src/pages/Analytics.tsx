@@ -22,7 +22,7 @@ export default function Analytics() {
   const chart = (points: MonthPoint[]) => points.map((p) => ({ month: monthLabel(p.month), value: p.value }));
   return (
     <>
-      <PageHeader eyebrow="INSIGHTS" title="Analytics" description="Usage across your organization over the last six months." />
+      <PageHeader eyebrow="Insights" title="Analytics" description="Usage across your organization over the last six months." />
       <ErrorBox message={error} onRetry={reload} />
       {loading && !data ? (
         <Spinner />
@@ -48,11 +48,11 @@ export default function Analytics() {
               <div className="chart-box tall">
                 <ResponsiveContainer width="100%" height="100%">
                   <LineChart data={chart(data.aiByMonth)}>
-                    <CartesianGrid vertical={false} stroke="#edf1f6" />
+                    <CartesianGrid vertical={false} stroke="#e2e6f0" />
                     <XAxis dataKey="month" tickLine={false} axisLine={false} />
                     <YAxis allowDecimals={false} tickLine={false} axisLine={false} width={32} />
                     <Tooltip />
-                    <Line dataKey="value" name="Requests" stroke="#3784ff" strokeWidth={3} />
+                    <Line dataKey="value" name="Requests" stroke="#3d5afe" strokeWidth={2.5} dot={false} />
                   </LineChart>
                 </ResponsiveContainer>
               </div>
@@ -65,11 +65,11 @@ export default function Analytics() {
               <div className="chart-box tall">
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={chart(data.documentsByMonth)}>
-                    <CartesianGrid vertical={false} stroke="#edf1f6" />
+                    <CartesianGrid vertical={false} stroke="#e2e6f0" />
                     <XAxis dataKey="month" tickLine={false} axisLine={false} />
                     <YAxis allowDecimals={false} tickLine={false} axisLine={false} width={32} />
                     <Tooltip />
-                    <Bar dataKey="value" name="Documents" fill="#16233f" radius={[5, 5, 0, 0]} />
+                    <Bar dataKey="value" name="Documents" fill="#0ea39b" radius={[5, 5, 0, 0]} />
                   </BarChart>
                 </ResponsiveContainer>
               </div>

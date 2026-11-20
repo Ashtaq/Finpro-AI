@@ -22,7 +22,7 @@ export default function Dashboard() {
   return (
     <>
       <PageHeader
-        eyebrow="OVERVIEW"
+        eyebrow="Overview"
         title={`${greeting()}, ${user?.name.split(" ")[0]}.`}
         description="Projects, documents, AI activity and upcoming work for your workspace."
       />
@@ -62,11 +62,11 @@ export default function Dashboard() {
               <div className="chart-box">
                 <ResponsiveContainer width="100%" height="100%">
                   <AreaChart data={data!.activity.map((p) => ({ month: monthLabel(p.month), value: p.value }))}>
-                    <CartesianGrid vertical={false} stroke="#edf1f6" />
+                    <CartesianGrid vertical={false} stroke="#e2e6f0" />
                     <XAxis dataKey="month" tickLine={false} axisLine={false} />
                     <YAxis allowDecimals={false} tickLine={false} axisLine={false} width={32} />
                     <Tooltip />
-                    <Area type="monotone" dataKey="value" name="Events" fill="rgba(55,132,255,.15)" stroke="#3784ff" strokeWidth={2} />
+                    <Area type="monotone" dataKey="value" name="Events" fill="rgba(61,90,254,.12)" stroke="#3d5afe" strokeWidth={2} />
                   </AreaChart>
                 </ResponsiveContainer>
               </div>

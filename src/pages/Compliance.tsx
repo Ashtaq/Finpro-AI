@@ -53,7 +53,7 @@ export default function Compliance() {
   return (
     <>
       <PageHeader
-        eyebrow="DEADLINE MANAGEMENT"
+        eyebrow="Deadline management"
         title="Compliance Calendar"
         description="Track tax, audit, filing and client deadlines. Confirm statutory due dates against official notifications."
         action={

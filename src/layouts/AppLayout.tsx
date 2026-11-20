@@ -98,8 +98,8 @@ export default function AppLayout() {
             <Sparkles size={18} />
           </div>
           <div>
-            <div className="brand-name">FINPRO AI</div>
-            <div className="brand-sub">FINANCE WORKSPACE</div>
+            <div className="brand-name">Finpro AI</div>
+            <div className="brand-sub">Finance workspace</div>
           </div>
           <button className="icon-btn sidebar-close" onClick={() => setMenuOpen(false)} aria-label="Close menu">
             <X size={18} />

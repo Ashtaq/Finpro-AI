@@ -181,7 +181,7 @@ export default function AIAssistant() {
         <Button onClick={newConversation}>
           <Plus size={15} /> New conversation
         </Button>
-        <div className="eyebrow">RECENT</div>
+        <div className="eyebrow">Recent</div>
         {conversations.map((c) => (
           <div
             key={c.id}
@@ -201,7 +201,7 @@ export default function AIAssistant() {
       <main className="ai-main">
         <div className="ai-top">
           <div>
-            <div className="eyebrow">{individual ? "PERSONAL FINANCE ASSISTANT" : "PROJECT AI WORKSPACE"}</div>
+            <div className="eyebrow">{individual ? "Personal finance assistant" : "Project AI workspace"}</div>
             <h1>{agent?.name || "Assistant"}</h1>
           </div>
           <div className="ai-selects">

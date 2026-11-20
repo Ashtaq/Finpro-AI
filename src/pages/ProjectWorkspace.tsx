@@ -52,7 +52,7 @@ export default function ProjectWorkspace() {
         <span>{p.name}</span>
       </div>
       <PageHeader
-        eyebrow={p.clientName || "INTERNAL PROJECT"}
+        eyebrow={p.clientName || "Internal project"}
         title={p.name}
         description={[p.type, p.fy, p.currency, p.startDate && p.endDate ? `${formatDate(p.startDate)} → ${formatDate(p.endDate)}` : ""]
           .filter(Boolean)

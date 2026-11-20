@@ -305,7 +305,7 @@ export default function Settings() {
   const { user } = useAuth();
   return (
     <div className="individual-settings">
-      <PageHeader eyebrow="ACCOUNT" title="Settings" description="Manage your account, security and workspace preferences." />
+      <PageHeader eyebrow="Account" title="Settings" description="Manage your account, security and workspace preferences." />
       <AccountPanel />
       {user?.role === "Individual" && <TaxProfilePanel />}
       <PasswordPanel />

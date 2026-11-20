@@ -12,7 +12,7 @@ export default function AIAgents() {
   return (
     <>
       <PageHeader
-        eyebrow="AI PLATFORM"
+        eyebrow="AI platform"
         title="AI Agents"
         description="Specialized assistants for financial analysis, tax, audit, investment, compliance, spreadsheets and documents."
       />

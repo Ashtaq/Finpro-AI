@@ -41,7 +41,7 @@ export default function IndividualDashboard() {
   return (
     <div className="page">
       <PageHeader
-        eyebrow="PERSONAL TAX WORKSPACE"
+        eyebrow="Personal tax workspace"
         title={`Welcome, ${user?.name.split(" ")[0]}`}
         description="Keep your finances organized through the year and prepare your income-tax return."
         action={

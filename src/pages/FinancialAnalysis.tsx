@@ -57,7 +57,7 @@ export default function FinancialAnalysis() {
   return (
     <>
       <PageHeader
-        eyebrow="FINANCIAL INTELLIGENCE"
+        eyebrow="Financial intelligence"
         title="Financial Analysis"
         description="Enter figures from audited statements to compute standard ratios. Every result shows its formula."
         action={

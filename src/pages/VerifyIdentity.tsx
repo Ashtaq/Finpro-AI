@@ -84,7 +84,7 @@ export default function VerifyIdentity() {
   return (
     <div className="page" style={{ maxWidth: 760 }}>
       <PageHeader
-        eyebrow="IDENTITY VERIFICATION"
+        eyebrow="Identity verification"
         title="Verify your identity"
         description="Finpro verifies your Aadhaar and PAN through DigiLocker before you prepare tax returns."
       />

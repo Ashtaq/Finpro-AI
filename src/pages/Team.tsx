@@ -73,7 +73,7 @@ export default function Team() {
   return (
     <>
       <PageHeader
-        eyebrow="WORKSPACE ADMINISTRATION"
+        eyebrow="Workspace administration"
         title="Team"
         description="Invite and manage Finance and Professional users in your organization."
         action={

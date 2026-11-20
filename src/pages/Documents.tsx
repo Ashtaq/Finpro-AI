@@ -27,7 +27,7 @@ export default function Documents() {
   return (
     <>
       <PageHeader
-        eyebrow={individual ? "TAX DOCUMENTS" : "DOCUMENT INTELLIGENCE"}
+        eyebrow={individual ? "Tax documents" : "Document intelligence"}
         title="Documents"
         description="Files are stored privately in your workspace and only downloadable by its members."
       />

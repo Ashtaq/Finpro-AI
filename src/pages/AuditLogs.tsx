@@ -36,7 +36,7 @@ export default function AuditLogs() {
   return (
     <>
       <PageHeader
-        eyebrow="CONTROL & AUDIT"
+        eyebrow="Control & audit"
         title="Audit Logs"
         description="Sign-ins, uploads, downloads, AI requests and permission changes in your organization."
         action={

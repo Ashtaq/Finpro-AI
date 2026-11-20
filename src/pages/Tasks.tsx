@@ -73,7 +73,7 @@ export default function Tasks() {
   return (
     <>
       <PageHeader
-        eyebrow="OPERATIONS"
+        eyebrow="Operations"
         title="Tasks"
         description="Drag cards between columns or use the move buttons."
         action={

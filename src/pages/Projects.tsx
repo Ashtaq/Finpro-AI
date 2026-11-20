@@ -59,7 +59,7 @@ export default function Projects() {
   return (
     <>
       <PageHeader
-        eyebrow="WORK MANAGEMENT"
+        eyebrow="Work management"
         title="Projects"
         description="Keep documents, tasks and AI conversations organized by engagement."
         action={

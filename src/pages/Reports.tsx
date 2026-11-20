@@ -178,7 +178,7 @@ export default function Reports() {
   return (
     <>
       <PageHeader
-        eyebrow="REPORTING"
+        eyebrow="Reporting"
         title={individual ? "Personal Summary" : "Workspace Report"}
         description="A live summary of your data. Print or save it as PDF from your browser."
         action={
@@ -189,7 +189,7 @@ export default function Reports() {
       />
       <div className="report-sheet">
         <div className="eyebrow">{user?.organizationName}</div>
-        <h1 style={{ margin: "4px 0 2px", fontFamily: "Space Grotesk" }}>{individual ? "Personal finance summary" : "Workspace status report"}</h1>
+        <h1 style={{ margin: "4px 0 2px", fontFamily: "var(--font-display)" }}>{individual ? "Personal finance summary" : "Workspace status report"}</h1>
         <p className="muted">
           Prepared for {user?.name} on {formatDateTime(new Date().toISOString())}
         </p>
